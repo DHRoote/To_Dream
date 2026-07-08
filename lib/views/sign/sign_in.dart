@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:eh/views/mainapp/main_app.dart';
 import 'package:eh/views/sign/sign_up.dart';
 
-import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -14,34 +12,90 @@ class SignInPage extends StatefulWidget {
 }
 
 class _SignInPageState extends State<SignInPage> {
-
+  // UI상 '아이디' 입력란이지만 기존 컨트롤러 변수명을 유지합니다.
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _isBlankWarning = false;
   bool _isAuthFailed = false;
   bool _isObscured = true;
+  bool _isLoading = false; // 로딩 상태 추가
 
-  void _handleLogin() {
-    // 입력 공백 확인
-    if (_emailController.text == '' || _passwordController.text == '') {
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // 로그인 인증 로직 (Firestore 연동)
+  void _handleLogin() async {
+    final String usernameInput = _emailController.text.trim();
+    final String passwordInput = _passwordController.text.trim();
+
+    // 1. 입력 공백 확인
+    if (usernameInput.isEmpty || passwordInput.isEmpty) {
       setState(() {
         _isBlankWarning = true;
+        _isAuthFailed = false;
       });
       return;
     }
 
-    // 로그인 인증
-    if (true) {
-      // 로그인 인증 성공
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainAppPage()),
-      );
-    } else {
-      setState(() {
-        _isAuthFailed = true;
-      });
+    setState(() {
+      _isLoading = true;
+      _isBlankWarning = false;
+      _isAuthFailed = false;
+    });
+
+    try {
+      // 2. Firestore의 'users' 컬렉션에서 아이디와 비밀번호가 일치하는 문서 조회
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('username', isEqualTo: usernameInput)
+          .where('password', isEqualTo: passwordInput) // 스키마 기준 평문 저장 가정
+          .get();
+
+      // 3. 일치하는 유저 정보가 존재하는 경우
+      if (querySnapshot.docs.isNotEmpty) {
+        final userDoc = querySnapshot.docs.first;
+        final userData = userDoc.data();
+
+        // PK 역할의 문서 고유 ID와 닉네임 추출
+        final String userId = userDoc.id;
+        final String nickname = userData['nickname'] ?? '이름없음';
+
+        if (mounted) {
+          // 4. 메인페이지로 이동하면서 ID와 닉네임 파라미터 전달
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MainAppPage(
+                userId: userId,
+                nickname: nickname,
+              ),
+            ),
+          );
+        }
+      } else {
+        // 일치하는 유저가 없는 경우 (인증 실패)
+        setState(() {
+          _isAuthFailed = true;
+        });
+      }
+    } catch (e) {
+      // 네트워크 오류 등 예외 처리
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류가 발생했습니다: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -75,7 +129,6 @@ class _SignInPageState extends State<SignInPage> {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // 배경 글로우 효과
                     Positioned.fill(
                       child: Opacity(
                         opacity: 0.30,
@@ -93,7 +146,6 @@ class _SignInPageState extends State<SignInPage> {
                         ),
                       ),
                     ),
-                    // 타이틀 및 서브타이틀
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
@@ -190,24 +242,15 @@ class _SignInPageState extends State<SignInPage> {
                               fillColor: Colors.white.withValues(alpha: 0.07),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(
-                                  width: 0.67,
-                                  color: Color(0x338E51FF),
-                                ),
+                                borderSide: const BorderSide(width: 0.67, color: Color(0x338E51FF)),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(
-                                  width: 0.67,
-                                  color: Color(0x338E51FF),
-                                ),
+                                borderSide: const BorderSide(width: 0.67, color: Color(0x338E51FF)),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(
-                                  width: 1.0,
-                                  color: Color(0x7F8E51FF),
-                                ),
+                                borderSide: const BorderSide(width: 1.0, color: Color(0x7F8E51FF)),
                               ),
                             ),
                           ),
@@ -231,7 +274,6 @@ class _SignInPageState extends State<SignInPage> {
                               ),
                             ),
                           ),
-
                           TextField(
                             controller: _passwordController,
                             onChanged: (value) {
@@ -240,7 +282,6 @@ class _SignInPageState extends State<SignInPage> {
                                 _isAuthFailed = false;
                               });
                             },
-                            // 변수 상태에 따라 글자를 마스킹하거나 보여줍니다.
                             obscureText: _isObscured,
                             style: const TextStyle(
                               color: Color(0xFFC4B4FF),
@@ -265,7 +306,6 @@ class _SignInPageState extends State<SignInPage> {
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
                                 icon: Icon(
-                                  // _isObscured 가 true면 눈 모양, false면 대각선 눈 모양 기본 아이콘 사용
                                   _isObscured ? Icons.visibility : Icons.visibility_off,
                                   color: const Color(0xFF7C6FA0),
                                   size: 20,
@@ -276,7 +316,6 @@ class _SignInPageState extends State<SignInPage> {
                                   });
                                 },
                               ),
-
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14),
                                 borderSide: const BorderSide(width: 0.67, color: Color(0x338E51FF)),
@@ -294,67 +333,24 @@ class _SignInPageState extends State<SignInPage> {
                         ],
                       ),
 
-                      // 로그인 유지 체크박스
-                      // todo 구현할 시간이?
-                      /*
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        spacing: 10,
-                        children: [
-                          Container(
-                            width: 20,
-                            height: 20,
-                            decoration: ShapeDecoration(
-                              color: Colors.white.withValues(alpha: 0.05),
-                              shape: RoundedRectangleBorder(
-                                side: const BorderSide(
-                                  width: 0.67,
-                                  color: Color(0x4C8E51FF),
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                          const Text(
-                            '로그인 유지',
-                            style: TextStyle(
-                              color: Color(0xFF7C6FA0),
-                              fontSize: 14,
-                              fontFamily: 'Noto Sans KR',
-                              fontWeight: FontWeight.w500,
-                              height: 1.43,
-                            ),
-                          ),
-                        ],
-                      ),
-                      */
-
-                      if(_isBlankWarning) ...[
+                      if (_isBlankWarning) ...[
                         const Text(
-                            '아이디와 비밀번호를 입력해주세요.',
-                            style: TextStyle (
-                                color: Colors.red,
-                                fontSize: 14,
-                                fontFamily: 'Noto Sans KR'
-                            )
+                          '아이디와 비밀번호를 입력해주세요.',
+                          style: TextStyle(color: Colors.red, fontSize: 14, fontFamily: 'Noto Sans KR'),
                         )
                       ],
 
-                      if(_isAuthFailed) ...[
+                      if (_isAuthFailed) ...[
                         const Text(
-                            '아이디와 비밀번호를 다시 확인해주세요.',
-                            style: TextStyle (
-                                color: Colors.red,
-                                fontSize: 14,
-                                fontFamily: 'Noto Sans KR'
-                            )
+                          '아이디와 비밀번호를 다시 확인해주세요.',
+                          style: TextStyle(color: Colors.red, fontSize: 14, fontFamily: 'Noto Sans KR'),
                         ),
                       ],
 
-                      // 로그인 버튼
+                      // 로그인 버튼 (로딩 상태 적용)
                       Container(
                         width: double.infinity,
-                        height: 48, // 기존 디자인의 상하 패딩(28) + 텍스트 높이(20)를 합산한 원래 높이
+                        height: 48,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             begin: Alignment(0.00, 0.00),
@@ -364,24 +360,22 @@ class _SignInPageState extends State<SignInPage> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: ElevatedButton(
-                          onPressed: _handleLogin,
+                          onPressed: _isLoading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
-                            padding: EdgeInsets.zero, // Container 높이에 맞추기 위해 내부 패딩 제거
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            disabledBackgroundColor: Colors.transparent,
                           ),
-                          child: const Text(
+                          child: _isLoading
+                              ? const SizedBox(
+                            width: 24, height: 24,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                              : const Text(
                             '로그인',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontFamily: 'Noto Sans KR',
-                              fontWeight: FontWeight.w700,
-                              height: 1.43,
-                            ),
+                            style: TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'Noto Sans KR', fontWeight: FontWeight.w700, height: 1.43),
                           ),
                         ),
                       ),
@@ -394,27 +388,17 @@ class _SignInPageState extends State<SignInPage> {
                           Expanded(
                             child: Container(
                               height: 1,
-                              decoration: const BoxDecoration(
-                                color: Color(0x268E51FF),
-                              ),
+                              decoration: const BoxDecoration(color: Color(0x268E51FF)),
                             ),
                           ),
                           const Text(
                             '또는',
-                            style: TextStyle(
-                              color: Color(0xFF7C6FA0),
-                              fontSize: 12,
-                              fontFamily: 'Noto Sans KR',
-                              fontWeight: FontWeight.w400,
-                              height: 1.33,
-                            ),
+                            style: TextStyle(color: Color(0xFF7C6FA0), fontSize: 12, fontFamily: 'Noto Sans KR', fontWeight: FontWeight.w400, height: 1.33),
                           ),
                           Expanded(
                             child: Container(
                               height: 1,
-                              decoration: const BoxDecoration(
-                                color: Color(0x268E51FF),
-                              ),
+                              decoration: const BoxDecoration(color: Color(0x268E51FF)),
                             ),
                           ),
                         ],
@@ -423,13 +407,9 @@ class _SignInPageState extends State<SignInPage> {
                       // 회원가입 버튼
                       Container(
                         width: double.infinity,
-                        height: 48, // 로그인 버튼과 동일한 높이로 고정하여 크기 통일
+                        height: 48,
                         decoration: BoxDecoration(
-                          // 기존의 선 두께와 색상, 둥근 모서리 유지
-                          border: Border.all(
-                            width: 0.67,
-                            color: const Color(0x4C8E51FF),
-                          ),
+                          border: Border.all(width: 0.67, color: const Color(0x4C8E51FF)),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: TextButton(
@@ -440,20 +420,12 @@ class _SignInPageState extends State<SignInPage> {
                             );
                           },
                           style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero, // Container 크기에 온전히 맞추기 위해 기본 여백 제거
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14), // 클릭 시 물결 애니메이션(Ripple)이 둥근 테두리에 예쁘게 맞도록 설정
-                            ),
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
                           child: const Text(
                             '회원가입',
-                            style: TextStyle(
-                              color: Color(0xFFC4B4FF),
-                              fontSize: 14,
-                              fontFamily: 'Noto Sans KR',
-                              fontWeight: FontWeight.w600,
-                              height: 1.43,
-                            ),
+                            style: TextStyle(color: Color(0xFFC4B4FF), fontSize: 14, fontFamily: 'Noto Sans KR', fontWeight: FontWeight.w600, height: 1.43),
                           ),
                         ),
                       ),
@@ -469,13 +441,7 @@ class _SignInPageState extends State<SignInPage> {
                 child: const Text(
                   '드림퀘스트와 함께 꿈을 이루어가세요 ✨',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF7C6FA0),
-                    fontSize: 12,
-                    fontFamily: 'Noto Sans KR',
-                    fontWeight: FontWeight.w400,
-                    height: 1.33,
-                  ),
+                  style: TextStyle(color: Color(0xFF7C6FA0), fontSize: 12, fontFamily: 'Noto Sans KR', fontWeight: FontWeight.w400, height: 1.33),
                 ),
               ),
             ],

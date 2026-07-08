@@ -3,7 +3,14 @@ import 'package:eh/views/mainapp/calander_widget.dart';
 import 'package:flutter/material.dart';
 
 class MainAppPage extends StatefulWidget {
-  const MainAppPage({super.key});
+  final String userId;
+  final String nickname;
+
+  const MainAppPage({
+    super.key,
+    required this.userId,
+    required this.nickname
+  });
 
   @override
   State<MainAppPage> createState() => _MainAppPageState();

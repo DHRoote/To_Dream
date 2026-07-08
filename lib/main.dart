@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:eh/views/sign/sign_in.dart';
 
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart'; // 코어 라이브러리
-import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp();
 
   runApp(const MyApp());
 }
