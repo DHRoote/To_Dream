@@ -189,7 +189,7 @@ class _CreateMissionScreenState extends State<CreateMissionScreen> {
                   Switch(
                     value: _isPublic,
                     onChanged: (val) => setState(() => _isPublic = val),
-                    activeColor: Colors.purpleAccent,
+                    activeThumbColor: Colors.purpleAccent,
                   ),
                 ],
               ),
