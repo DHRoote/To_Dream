@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:eh/views/mainapp/main_app.dart';
 import 'package:eh/views/sign/sign_up.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
 
