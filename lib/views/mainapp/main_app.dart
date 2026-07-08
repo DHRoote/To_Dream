@@ -1,6 +1,9 @@
 import 'package:eh/views/mainapp/main_drawer.dart';
 import 'package:eh/views/mainapp/calander_widget.dart';
 import 'package:flutter/material.dart';
+import '../models/group_mission.dart';
+import '../widgets/mission_card.dart';
+import '../screens/chat_screen.dart';
 
 class MainAppPage extends StatefulWidget {
   const MainAppPage({super.key});
@@ -283,12 +286,32 @@ class _MainAppPageState extends State<MainAppPage> {
         ],
       );
     } else {
+      if (GroupMission.globalMissions.isEmpty) {
+        return const Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Text(
+              '참여 중인 그룹 미션이 없습니다.\n새로운 미션에 참여해 보세요!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+          ),
+        );
+      }
       return Column(
-        spacing: 12,
-        children: [
-          _buildMissionCard('플러터 스터디 프로젝트', '매주 토요일 회의', 0.6, const Color(0xFF2563EB)),
-          _buildMissionCard('30분 유산소 운동 인증', '팀 미션 (4인)', 0.9, const Color(0xFF10B981)),
-        ],
+        children: GroupMission.globalMissions.map((mission) {
+          return MissionCard(
+            mission: mission,
+            onJoin: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChatScreen(mission: mission),
+                ),
+              );
+            },
+          );
+        }).toList(),
       );
     }
   }

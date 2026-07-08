@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:eh/views/mainapp/main_drawer.dart';
+import '../screens/group_mission_screen.dart';
+import '../screens/achievement_screen.dart';
 
 class MainEndDrawer extends StatelessWidget {
   const MainEndDrawer({super.key});
@@ -79,7 +80,10 @@ class MainEndDrawer extends StatelessWidget {
                       title: '업적',
                       onTap: () {
                         Navigator.pop(context); // 클릭 시 드로어 닫기
-                        print('업적 메뉴 클릭됨');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const AchievementScreen()),
+                        );
                       },
                     ),
                     _buildMenuButton(
@@ -95,7 +99,10 @@ class MainEndDrawer extends StatelessWidget {
                       title: '그룹 미션',
                       onTap: () {
                         Navigator.pop(context);
-                        print('그룹 미션 메뉴 클릭됨');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const GroupMissionScreen()),
+                        );
                       },
                     ),
                     _buildMenuButton(
