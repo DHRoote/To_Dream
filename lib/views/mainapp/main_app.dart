@@ -148,7 +148,7 @@ class _MainAppPageState extends State<MainAppPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Column(
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
@@ -162,11 +162,10 @@ class _MainAppPageState extends State<MainAppPage> {
             ),
             SizedBox(height: 4),
 
-            // Todo 이름 받아와서 수정
             Row(
               children: [
                 Text(
-                  '루나',
+                  widget.nickname,
                   style: TextStyle(
                     color: Color(0xFFF0EAFF),
                     fontSize: 20,
