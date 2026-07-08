@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
 
@@ -9,7 +12,7 @@ class SignUpPage extends StatefulWidget {
 
 class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _idController = TextEditingController();
+  final TextEditingController _idController = TextEditingController(); // 스키마의 username
   final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -24,6 +27,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
   bool _isPasswordObscured = true;
   String _selectedGender = '남성';
+  bool _isLoading = false; // 로딩 상태 추가
 
   @override
   void dispose() {
@@ -36,7 +40,8 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
-  void _handleSignUp() {
+  // 데이터베이스 저장 로직 (Firestore 연동)
+  Future<void> _handleSignUp() async {
     setState(() {
       _isNameError = _nameController.text.trim().isEmpty;
       _isIdError = _idController.text.trim().isEmpty;
@@ -48,14 +53,77 @@ class _SignUpPageState extends State<SignUpPage> {
 
     if (_isNameError || _isIdError || _isNicknameError ||
         _isPhoneError || _isPasswordError || _isConfirmPasswordError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('모든 필수 항목을 입력해주세요.')),
+      );
       return;
     }
 
-    // 모든 검증 통과 시 수행할 로직
-    print('가입 완료 진행');
-    // todo 데이터베이스 저장 / 서버 전송
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('비밀번호가 일치하지 않습니다.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final usersCollection = firestore.collection('users');
+
+      // 1. 제약조건 확인 (아이디: UNIQUE)
+      final idCheck = await usersCollection
+          .where('username', isEqualTo: _idController.text.trim())
+          .get();
+      if (idCheck.docs.isNotEmpty) {
+        throw Exception('이미 사용 중인 아이디입니다.');
+      }
+
+      // 2. 제약조건 확인 (닉네임: UNIQUE)
+      final nicknameCheck = await usersCollection
+          .where('nickname', isEqualTo: _nicknameController.text.trim())
+          .get();
+      if (nicknameCheck.docs.isNotEmpty) {
+        throw Exception('이미 사용 중인 닉네임입니다.');
+      }
+
+      // 3. Firestore 데이터베이스 저장 (스키마에 맞춰 필드명 설정)
+      await usersCollection.add({
+        'username': _idController.text.trim(),
+        'password': _passwordController.text.trim(), // 스키마에 따라 평문 저장
+        'name': _nameController.text.trim(),
+        'nickname': _nicknameController.text.trim(),
+        'phone_number': _phoneController.text.trim(),
+        'gender': _selectedGender,
+        'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+
+      // 가입 성공 메시지 및 화면 이동
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('회원가입이 완료되었습니다.')),
+        );
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      // 오류 발생 시 사용자에게 알림
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('가입 실패: ${e.toString().replaceAll('Exception: ', '')}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -99,7 +167,7 @@ class _SignUpPageState extends State<SignUpPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 상단 헤더 영역 생략 (기존과 동일)
+                // 상단 헤더 영역
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.only(top: 24, left: 24, right: 24, bottom: 16),
@@ -199,7 +267,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         ],
                       ),
 
-                      // 5. 성별 선택란 (생략 없이 동일 유지)
+                      // 5. 성별 선택란
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -295,12 +363,20 @@ class _SignUpPageState extends State<SignUpPage> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: ElevatedButton(
-                            onPressed: _handleSignUp,
+                            onPressed: _isLoading ? null : _handleSignUp,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: EdgeInsets.zero,
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              padding: EdgeInsets.zero,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              disabledBackgroundColor: Colors.transparent,
                             ),
-                            child: const Text('가입 완료', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                            child: _isLoading
+                                ? const SizedBox(
+                                width: 24, height: 24,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                            )
+                                : const Text('가입 완료', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
                           ),
                         ),
                       ),
