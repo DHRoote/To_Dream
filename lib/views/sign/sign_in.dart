@@ -5,6 +5,7 @@ import 'package:eh/views/sign/sign_up.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
 
@@ -294,6 +295,8 @@ class _SignInPageState extends State<SignInPage> {
                       ),
 
                       // 로그인 유지 체크박스
+                      // todo 구현할 시간이?
+                      /*
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         spacing: 10,
@@ -324,6 +327,7 @@ class _SignInPageState extends State<SignInPage> {
                           ),
                         ],
                       ),
+                      */
 
                       if(_isBlankWarning) ...[
                         const Text(
