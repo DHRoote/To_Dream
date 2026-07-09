@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:eh/views/mainapp/main_app.dart';
 import 'package:eh/views/sign/sign_up.dart';
+import 'package:provider/provider.dart';
+import 'package:eh/providers/user_provider.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -67,14 +69,12 @@ class _SignInPageState extends State<SignInPage> {
 
         if (mounted) {
           // 4. 메인페이지로 이동하면서 ID와 닉네임 파라미터 전달
+
+          context.read<UserProvider>().setUserId(userId);
+          context.read<UserProvider>().setNickname(nickname);
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (context) => MainAppPage(
-                userId: userId,
-                nickname: nickname,
-              ),
-            ),
+            MaterialPageRoute(builder: (context) => const MainAppPage()),
           );
         }
       } else {
