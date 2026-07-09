@@ -123,6 +123,8 @@ class MainEndDrawer extends StatelessWidget {
                         );
                       },
                     ),
+                    //unused
+                    /*
                     _buildMenuButton(
                       icon: Icons.storefront_outlined,
                       title: '상점',
@@ -131,6 +133,9 @@ class MainEndDrawer extends StatelessWidget {
                         print('상점 메뉴 클릭됨');
                       },
                     ),
+                    */
+
+                    /*
                     _buildMenuButton(
                       icon: Icons.people_outline,
                       title: '친구',
@@ -139,6 +144,7 @@ class MainEndDrawer extends StatelessWidget {
                         print('친구 메뉴 클릭됨');
                       },
                     ),
+                     */
                   ],
                 ),
               ),
