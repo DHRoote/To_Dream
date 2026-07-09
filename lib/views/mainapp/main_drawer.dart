@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../screens/group_mission_screen.dart';
 import '../screens/achievement_screen.dart';
 import '../personal/mission_manage.dart';
+import '../screens/total_mission_screen.dart';
 
 class MainEndDrawer extends StatelessWidget {
   const MainEndDrawer({super.key});
@@ -116,7 +117,10 @@ class MainEndDrawer extends StatelessWidget {
                       title: '전체 미션',
                       onTap: () {
                         Navigator.pop(context);
-                        print('전체 미션 메뉴 클릭됨');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TotalMissionScreen()),
+                        );
                       },
                     ),
                     _buildMenuButton(
