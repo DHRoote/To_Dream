@@ -347,32 +347,47 @@ class _MainAppPageState extends State<MainAppPage> {
         },
       );
     } else {
-      if (GroupMission.globalMissions.isEmpty) {
-        return const Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 40),
-            child: Text(
-              '참여 중인 그룹 미션이 없습니다.\n새로운 미션에 참여해 보세요!',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
-          ),
-        );
-      }
-      return Column(
-        children: GroupMission.globalMissions.map((mission) {
-          return MissionCard(
-            mission: mission,
-            onJoin: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ChatScreen(mission: mission),
+      return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('group_missions').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(child: CircularProgressIndicator(color: Color(0xFF8E51FF))),
+            );
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Text(
+                  '참여 중인 그룹 미션이 없습니다.\n새로운 미션에 참여해 보세요!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
                 ),
+              ),
+            );
+          }
+
+          final missions = snapshot.data!.docs.map((doc) => GroupMission.fromFirestore(doc)).toList();
+
+          return Column(
+            children: missions.map((mission) {
+              return MissionCard(
+                mission: mission,
+                onJoin: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatScreen(mission: mission),
+                    ),
+                  );
+                },
               );
-            },
+            }).toList(),
           );
-        }).toList(),
+        },
       );
     }
   }

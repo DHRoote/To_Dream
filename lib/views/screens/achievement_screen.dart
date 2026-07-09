@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../mainapp/main_drawer.dart';
+import '../../providers/user_provider.dart';
 
 class AchievementScreen extends StatelessWidget {
   const AchievementScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final userId = context.read<UserProvider>().userId;
+
     return Scaffold(
       endDrawer: const MainEndDrawer(),
       body: Container(
@@ -22,79 +27,90 @@ class AchievementScreen extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildAppBar(context),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 10),
-                      _buildSummaryCard(),
-                      const SizedBox(height: 24),
-                      _buildAchievementItem(
-                        icon: '🌟',
-                        title: '첫 미션 완료',
-                        description: '생애 첫 미션을 완료했습니다',
-                        isCompleted: false,
-                        iconBgColor: Colors.orange.withValues(alpha: 0.1),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(userId)
+                .collection('achievements')
+                .snapshots(),
+            builder: (context, snapshot) {
+              final Map<String, bool> completedMap = {};
+              if (snapshot.hasData) {
+                for (var doc in snapshot.data!.docs) {
+                  completedMap[doc.id] = doc['isCompleted'] ?? false;
+                }
+              }
+
+              final int completedCount = completedMap.values.where((v) => v).length;
+
+              return Column(
+                children: [
+                  _buildAppBar(context),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 10),
+                          _buildSummaryCard(completedCount),
+                          const SizedBox(height: 24),
+                          _buildAchievementItem(
+                            icon: '🌟',
+                            title: '첫 미션 완료',
+                            description: '생애 첫 미션을 완료했습니다',
+                            isCompleted: completedMap['first_mission'] ?? false,
+                            iconBgColor: Colors.orange.withValues(alpha: 0.1),
+                          ),
+                          _buildAchievementItem(
+                            icon: '🔥',
+                            title: '총 10개 미션 완료',
+                            description: '10개의 미션을 완료했습니다',
+                            isCompleted: completedMap['10_missions'] ?? false,
+                            iconBgColor: Colors.deepOrange.withValues(alpha: 0.1),
+                          ),
+                          _buildAchievementItem(
+                            icon: '📚',
+                            title: '공부왕',
+                            description: '공부 관련 미션 10개 완료',
+                            isCompleted: completedMap['study_king'] ?? false,
+                            iconBgColor: Colors.green.withValues(alpha: 0.1),
+                          ),
+                          _buildAchievementItem(
+                            icon: '🏃',
+                            title: '운동 마스터',
+                            description: '운동 관련 미션 20개 완료',
+                            isCompleted: completedMap['workout_master'] ?? false,
+                            iconBgColor: Colors.blue.withValues(alpha: 0.1),
+                          ),
+                          _buildAchievementItem(
+                            icon: '💯',
+                            title: '100개 미션',
+                            description: '총 100개 미션 완료',
+                            isCompleted: completedMap['100_missions'] ?? false,
+                            iconBgColor: Colors.redAccent.withValues(alpha: 0.1),
+                          ),
+                          _buildAchievementItem(
+                            icon: '👥',
+                            title: '그룹 리더',
+                            description: '그룹 미션 생성',
+                            isCompleted: completedMap['group_leader'] ?? false,
+                            iconBgColor: Colors.purple.withValues(alpha: 0.1),
+                          ),
+                          _buildAchievementItem(
+                            icon: '🏆',
+                            title: '총 30개 미션 완료',
+                            description: '30개 미션을 완료했습니다',
+                            isCompleted: completedMap['30_missions'] ?? false,
+                            iconBgColor: Colors.yellow.withValues(alpha: 0.1),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
                       ),
-                      _buildAchievementItem(
-                        icon: '🔥',
-                        title: '7일 연속 달성',
-                        description: '7일 동안 미션을 연속으로 완료했습니다',
-                        isCompleted: false,
-                        iconBgColor: Colors.deepOrange.withValues(alpha: 0.1),
-                      ),
-                      _buildAchievementItem(
-                        icon: '📚',
-                        title: '독서왕',
-                        description: '독서 관련 미션 10개 완료',
-                        isCompleted: false,
-                        iconBgColor: Colors.green.withValues(alpha: 0.1),
-                      ),
-                      _buildAchievementItem(
-                        icon: '🏃',
-                        title: '운동 마스터',
-                        description: '운동 관련 미션 20개 완료',
-                        isCompleted: false,
-                        iconBgColor: Colors.blue.withValues(alpha: 0.1),
-                      ),
-                      _buildAchievementItem(
-                        icon: '💯',
-                        title: '100개 미션',
-                        description: '총 100개 미션 완료',
-                        isCompleted: false,
-                        iconBgColor: Colors.redAccent.withValues(alpha: 0.1),
-                      ),
-                      _buildAchievementItem(
-                        icon: '⚡',
-                        title: '레벨 50',
-                        description: '레벨 50 달성',
-                        isCompleted: false,
-                        iconBgColor: Colors.amber.withValues(alpha: 0.1),
-                      ),
-                      _buildAchievementItem(
-                        icon: '👥',
-                        title: '그룹 리더',
-                        description: '그룹 미션 생성 및 완료',
-                        isCompleted: false,
-                        iconBgColor: Colors.purple.withValues(alpha: 0.1),
-                      ),
-                      _buildAchievementItem(
-                        icon: '🏆',
-                        title: '30일 연속',
-                        description: '30일 연속 미션 완료',
-                        isCompleted: false,
-                        iconBgColor: Colors.yellow.withValues(alpha: 0.1),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -146,7 +162,7 @@ class AchievementScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard() {
+  Widget _buildSummaryCard(int completedCount) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -178,17 +194,17 @@ class AchievementScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   RichText(
-                    text: const TextSpan(
+                    text: TextSpan(
                       children: [
                         TextSpan(
-                          text: '0/8',
-                          style: TextStyle(
+                          text: '$completedCount/7',
+                          style: const TextStyle(
                             color: Colors.orangeAccent,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        TextSpan(
+                        const TextSpan(
                           text: ' 달성',
                           style: TextStyle(
                             color: Colors.grey,
@@ -210,11 +226,11 @@ class AchievementScreen extends StatelessWidget {
           const SizedBox(height: 20),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: const LinearProgressIndicator(
-              value: 0.0,
+            child: LinearProgressIndicator(
+              value: completedCount / 7,
               minHeight: 8,
               backgroundColor: Colors.white10,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.orangeAccent),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.orangeAccent),
             ),
           ),
         ],
