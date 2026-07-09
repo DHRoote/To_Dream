@@ -6,6 +6,7 @@ import '../screens/total_mission_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:eh/providers/user_provider.dart';
 import 'package:eh/views/sign/sign_in.dart';
+import 'package:eh/views/personal/my_page.dart';
 
 class MainEndDrawer extends StatelessWidget {
   const MainEndDrawer({super.key});
@@ -81,6 +82,17 @@ class MainEndDrawer extends StatelessWidget {
                   spacing: 4, // 버튼 간 간격 4px 반영
                   children: [
                     _buildMenuButton(
+                      icon: Icons.edit_outlined,
+                      title: '마이페이지',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const MyPage()),
+                        );
+                      },
+                    ),
+                    _buildMenuButton(
                       icon: Icons.emoji_events_outlined,
                       title: '업적',
                       onTap: () {
@@ -97,10 +109,10 @@ class MainEndDrawer extends StatelessWidget {
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const MissionManagePage(
+                            context,
+                            MaterialPageRoute(builder: (context) => const MissionManagePage(
 
-                          ))
+                            ))
                         );
                       },
                     ),
