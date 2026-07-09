@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class GroupMission {
   final String id;
   final String title;
@@ -44,6 +46,56 @@ class GroupMission {
     this.penalty = 0,
     this.prize = 0,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'title': title,
+      'description': description,
+      'currentParticipants': currentParticipants,
+      'maxParticipants': maxParticipants,
+      'leaderName': leaderName,
+      'xp': xp,
+      'category': category,
+      'status': status,
+      'remainingTime': remainingTime,
+      'progress': progress,
+      'gender': gender,
+      'isPublic': isPublic,
+      'deposit': deposit,
+      'penalty': penalty,
+      'prize': prize,
+      'startDate': Timestamp.fromDate(startDate),
+      'endDate': Timestamp.fromDate(endDate),
+      'recruitmentStartDate': recruitmentStartDate != null ? Timestamp.fromDate(recruitmentStartDate!) : null,
+      'recruitmentEndDate': recruitmentEndDate != null ? Timestamp.fromDate(recruitmentEndDate!) : null,
+    };
+  }
+
+  factory GroupMission.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    return GroupMission(
+      id: doc.id,
+      title: data['title'] ?? '',
+      description: data['description'] ?? '',
+      currentParticipants: data['currentParticipants'] ?? 0,
+      maxParticipants: data['maxParticipants'] ?? 0,
+      leaderName: data['leaderName'] ?? '',
+      xp: data['xp'] ?? 0,
+      category: data['category'] ?? '',
+      status: data['status'] ?? '',
+      remainingTime: data['remainingTime'] ?? '',
+      progress: (data['progress'] ?? 0.0).toDouble(),
+      gender: data['gender'] ?? '모두',
+      isPublic: data['isPublic'] ?? true,
+      deposit: data['deposit'] ?? 0,
+      penalty: data['penalty'] ?? 0,
+      prize: data['prize'] ?? 0,
+      startDate: (data['startDate'] as Timestamp).toDate(),
+      endDate: (data['endDate'] as Timestamp).toDate(),
+      recruitmentStartDate: data['recruitmentStartDate'] != null ? (data['recruitmentStartDate'] as Timestamp).toDate() : null,
+      recruitmentEndDate: data['recruitmentEndDate'] != null ? (data['recruitmentEndDate'] as Timestamp).toDate() : null,
+    );
+  }
 
   // 파이어베이스 연동 전까지 데이터를 유지하기 위한 임시 저장소
   static List<GroupMission> globalMissions = [];

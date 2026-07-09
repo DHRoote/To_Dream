@@ -41,6 +41,22 @@ class MissionCard extends StatelessWidget {
     }
   }
 
+  Widget _buildMoneyInfo(String label, int amount, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white38, fontSize: 10),
+        ),
+        Text(
+          '${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}원',
+          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -111,6 +127,15 @@ class MissionCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildMoneyInfo('예치금', mission.deposit, Colors.blueAccent),
+                        _buildMoneyInfo('벌금', mission.penalty, Colors.redAccent),
+                        _buildMoneyInfo('상금', mission.prize, Colors.amber),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -179,6 +204,22 @@ class _StatusBadge extends StatelessWidget {
   final String status;
   const _StatusBadge({required this.status});
 
+  Widget _buildMoneyInfo(String label, int amount, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white38, fontSize: 10),
+        ),
+        Text(
+          '${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}원',
+          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     Color color = status == '진행중' ? Colors.purple : Colors.green;
@@ -199,6 +240,22 @@ class _StatusBadge extends StatelessWidget {
 class _TimeBadge extends StatelessWidget {
   final String time;
   const _TimeBadge({required this.time});
+
+  Widget _buildMoneyInfo(String label, int amount, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white38, fontSize: 10),
+        ),
+        Text(
+          '${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}원',
+          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

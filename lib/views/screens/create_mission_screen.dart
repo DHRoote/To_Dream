@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../models/group_mission.dart';
+import '../../providers/user_provider.dart';
 
 class CreateMissionScreen extends StatefulWidget {
   const CreateMissionScreen({super.key});
@@ -20,6 +23,7 @@ class _CreateMissionScreenState extends State<CreateMissionScreen> {
   int _deposit = 10000;
   int _penalty = 5000;
   int _prize = 15000;
+  bool _isLoading = false;
   DateTime _startDate = DateTime.now().add(const Duration(days: 16));
   DateTime _endDate = DateTime.now().add(const Duration(days: 23));
   DateTime _recruitmentStartDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
@@ -304,32 +308,74 @@ class _CreateMissionScreenState extends State<CreateMissionScreen> {
     );
   }
 
-  void _submitForm() {
+  void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
-      final newMission = GroupMission(
-        id: DateTime.now().toString(),
-        title: _title,
-        description: _description,
-        currentParticipants: 1,
-        maxParticipants: _maxParticipants.toInt(),
-        leaderName: '나',
-        xp: 500,
-        category: _category,
-        status: '모집중',
-        remainingTime: '${_recruitmentEndDate.difference(DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day)).inDays}일 남음',
-        progress: 0.0,
-        gender: _gender,
-        isPublic: _isPublic,
-        deposit: _deposit,
-        penalty: _penalty,
-        prize: _prize,
-        startDate: _startDate,
-        endDate: _endDate,
-        recruitmentStartDate: _recruitmentStartDate,
-        recruitmentEndDate: _recruitmentEndDate,
-      );
-      Navigator.pop(context, newMission);
+      
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final userProvider = context.read<UserProvider>();
+        final newMissionData = {
+          'title': _title,
+          'description': _description,
+          'currentParticipants': 1,
+          'maxParticipants': _maxParticipants.toInt(),
+          'leaderName': '나',
+          'xp': 500,
+          'category': _category,
+          'status': '모집중',
+          'remainingTime': '${_recruitmentEndDate.difference(DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day)).inDays}일 남음',
+          'progress': 0.0,
+          'gender': _gender,
+          'isPublic': _isPublic,
+          'deposit': _deposit,
+          'penalty': _penalty,
+          'prize': _prize,
+          'startDate': Timestamp.fromDate(_startDate),
+          'endDate': Timestamp.fromDate(_endDate),
+          'recruitmentStartDate': Timestamp.fromDate(_recruitmentStartDate),
+          'recruitmentEndDate': Timestamp.fromDate(_recruitmentEndDate),
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+
+        // 1. Firestore에 미션 저장
+        await FirebaseFirestore.instance.collection('group_missions').add(newMissionData);
+
+        // 2. 업적 업데이트: '그룹 리더' 업적 완료 처리
+        // Firestore의 users 컬렉션에 유저별 업적 상태를 저장한다고 가정합니다.
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userProvider.userId)
+            .collection('achievements')
+            .doc('group_leader')
+            .set({
+              'isCompleted': true,
+              'completedAt': FieldValue.serverTimestamp(),
+              'title': '그룹 리더',
+            }, SetOptions(merge: true));
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('그룹 미션이 생성되었습니다! 업적 [그룹 리더] 달성!')),
+          );
+          Navigator.pop(context, true); // 성공 시 true 반환
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('미션 생성 실패: $e')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
     }
   }
 }
