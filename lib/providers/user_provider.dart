@@ -19,4 +19,11 @@ class UserProvider with ChangeNotifier {
     _nickname = nickname;
     notifyListeners(); // "데이터가 바뀌었어!" 하고 앱 전체에 방송하는 역할
   }
+
+  // 로그아웃 시 사용자 정보 초기화
+  void clearUser() {
+    _userId = '';
+    _nickname = '';
+    notifyListeners();
+  }
 }

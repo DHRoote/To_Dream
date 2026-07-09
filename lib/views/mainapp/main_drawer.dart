@@ -3,6 +3,9 @@ import '../screens/group_mission_screen.dart';
 import '../screens/achievement_screen.dart';
 import '../personal/mission_manage.dart';
 import '../screens/total_mission_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:eh/providers/user_provider.dart';
+import 'package:eh/views/sign/sign_in.dart';
 
 class MainEndDrawer extends StatelessWidget {
   const MainEndDrawer({super.key});
@@ -156,9 +159,15 @@ class MainEndDrawer extends StatelessWidget {
                 padding: const EdgeInsets.all(16.0),
                 child: InkWell(
                   onTap: () {
-                    Navigator.pop(context);
-                    // TODO: 로그아웃 세션 해제 처리
-                    print('로그아웃 수행');
+                    context.read<UserProvider>().clearUser();
+
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SignInPage(),
+                      ),
+                          (route) => false,
+                    );
                   },
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
