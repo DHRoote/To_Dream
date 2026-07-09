@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/group_mission_screen.dart';
 import '../screens/achievement_screen.dart';
-import '../screens/friend_screen.dart';
 
 class MainEndDrawer extends StatelessWidget {
   const MainEndDrawer({super.key});
@@ -126,15 +125,8 @@ class MainEndDrawer extends StatelessWidget {
                       icon: Icons.people_outline,
                       title: '친구',
                       onTap: () {
-                        Navigator.pop(context); // 1. 먼저 열려있는 메뉴 드로어를 닫습니다.
-
-                        // 2. 친구 목록 화면으로 이동합니다! 🚀
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const FriendScreen(),
-                          ),
-                        );
+                        Navigator.pop(context);
+                        print('친구 메뉴 클릭됨');
                       },
                     ),
                   ],
