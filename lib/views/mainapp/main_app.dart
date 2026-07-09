@@ -2,28 +2,27 @@ import 'package:eh/views/mainapp/main_drawer.dart';
 import 'package:eh/views/mainapp/calander_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eh/providers/user_provider.dart';
 import '../models/group_mission.dart';
 import '../widgets/mission_card.dart';
 import '../screens/chat_screen.dart';
 
 class MainAppPage extends StatefulWidget {
-
-  const MainAppPage({
-    super.key
-  });
+  const MainAppPage({super.key});
 
   @override
   State<MainAppPage> createState() => _MainAppPageState();
 }
 
 class _MainAppPageState extends State<MainAppPage> {
-  // 현재 선택된 미션 탭 상태 관리
   String _selectedMissionTab = '개인';
+
+  // 💡 메인 앱에서 선택된 날짜를 직접 들고 관리합니다.
+  DateTime _selectedDate = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
-
     final myUserId = context.read<UserProvider>().userId;
     final myNickname = context.read<UserProvider>().nickname;
 
@@ -50,11 +49,8 @@ class _MainAppPageState extends State<MainAppPage> {
             )
           ],
         ),
-
-        // 플로팅 버튼
         child: FloatingActionButton(
           onPressed: () {
-            // TODO: 버튼 클릭 시 동작 추가, 위젯 페이지 이동
             print('공간 FAB 클릭됨');
           },
           backgroundColor: Colors.transparent,
@@ -96,7 +92,6 @@ class _MainAppPageState extends State<MainAppPage> {
         ),
       ),
 
-      // 메인 영역
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -114,7 +109,6 @@ class _MainAppPageState extends State<MainAppPage> {
         child: SafeArea(
           child: Column(
             children: [
-              // 메인 영역
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -122,20 +116,24 @@ class _MainAppPageState extends State<MainAppPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 16),
-                      // --- 1. 상단 프로필 및 헤더 영역 ---
                       _buildHeader(myNickname),
                       const SizedBox(height: 24),
 
-                      // --- 2. 달력 영역 (동적 변환을 위해 메서드로 분리) ---
-                      DynamicCalendarWidget(),
+                      // 💡 [수정] 외부 위젯 달력에 상태값과 콜백 함수를 주입합니다.
+                      DynamicCalendarWidget(
+                        selectedDate: _selectedDate,
+                        onDateSelected: (date) {
+                          setState(() {
+                            _selectedDate = date; // 달력에서 날짜를 찍으면 메인 앱 상태가 변함
+                          });
+                        },
+                      ),
                       const SizedBox(height: 28),
 
-                      // --- 3. 미션 탭 바 (개인미션 / 그룹미션 토글) ---
                       _buildMissionTabBar(),
                       const SizedBox(height: 16),
 
-                      // --- 4. 동적 미션 리스트 표시 영역 ---
-                      _buildMissionList(),
+                      _buildMissionList(myUserId),
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -148,7 +146,6 @@ class _MainAppPageState extends State<MainAppPage> {
     );
   }
 
-  // 상단 프로필 헤더
   Widget _buildHeader(String nickname) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -156,7 +153,7 @@ class _MainAppPageState extends State<MainAppPage> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               '안녕하세요,',
               style: TextStyle(
                 color: Color(0xFF7C6FA0),
@@ -165,20 +162,19 @@ class _MainAppPageState extends State<MainAppPage> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            SizedBox(height: 4),
-
+            const SizedBox(height: 4),
             Row(
               children: [
                 Text(
                   nickname,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Color(0xFFF0EAFF),
                     fontSize: 20,
                     fontFamily: 'Noto Sans KR',
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                Text(
+                const Text(
                   '님 🌟',
                   style: TextStyle(
                     color: Color(0xFFF0EAFF),
@@ -221,10 +217,6 @@ class _MainAppPageState extends State<MainAppPage> {
     );
   }
 
-  // 달력 위젯
-  // 외부 클래스로 대체
-
-  // 미션 선택 탭바 (개인미션 / 그룹미션)
   Widget _buildMissionTabBar() {
     return Container(
       width: double.infinity,
@@ -244,7 +236,6 @@ class _MainAppPageState extends State<MainAppPage> {
     );
   }
 
-  // 탭바 개별 버튼 생성기
   Widget _buildTabButton(String title) {
     final bool isSelected = _selectedMissionTab == title;
     return Expanded(
@@ -281,17 +272,79 @@ class _MainAppPageState extends State<MainAppPage> {
     );
   }
 
-  // 현재 선택된 탭에 맞춰 동적으로 미션 리스트를 빌드하는 핵심 컬럼
-  Widget _buildMissionList() {
-    // 실제 운영 시 데이터베이스나 서버 연동 리스트로 대체될 영역입니다.
+  Widget _buildMissionList(String userId) {
     if (_selectedMissionTab == '개인') {
-      return Column(
-        spacing: 12,
-        children: [
-          _buildMissionCard('아침 물 한 잔 마시기', '매일 오전 8:00', 0.8, const Color(0xFF7C3AED)),
-          _buildMissionCard('알고리즘 1문제 풀기', '매일 오후 9:00', 0.3, const Color(0xFFDB2777)),
-          _buildMissionCard('일기 작성하기', '매일 오후 11:00', 0.0, const Color(0xFF7C6FA0)),
-        ],
+      return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('personal_missions')
+            .where('user_id', isEqualTo: userId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(child: CircularProgressIndicator(color: Color(0xFF8E51FF))),
+            );
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: Text(
+                  '등록된 미션이 없습니다.',
+                  style: TextStyle(color: Color(0xFF7C6FA0), fontSize: 14),
+                ),
+              ),
+            );
+          }
+
+          // 💡 달력에서 선택한 날짜(_selectedDate)와 파이어베이스 미션의 날짜 대조 필터링
+          final filteredMissions = snapshot.data!.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final Timestamp? targetTimestamp = data['target_date'] as Timestamp?;
+            if (targetTimestamp == null) return false;
+
+            final targetDate = targetTimestamp.toDate();
+            return targetDate.year == _selectedDate.year &&
+                targetDate.month == _selectedDate.month &&
+                targetDate.day == _selectedDate.day;
+          }).toList();
+
+          if (filteredMissions.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: Text(
+                  '해당 날짜에 예정된 미션이 없습니다.',
+                  style: TextStyle(color: Color(0xFF7C6FA0), fontSize: 14),
+                ),
+              ),
+            );
+          }
+
+          return Column(
+            children: filteredMissions.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final String title = data['title'] ?? '제목 없음';
+              final int progress = data['progress'] ?? 0;
+              final int maxProgress = data['max_progress'] ?? 1;
+              final int points = data['points'] ?? 0;
+
+              final double progressRatio = (maxProgress > 0) ? (progress / maxProgress).clamp(0.0, 1.0) : 0.0;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: _buildMissionCard(
+                  title: title,
+                  subtitle: '보상: $points XP',
+                  progress: progressRatio,
+                  themeColor: const Color(0xFF7C3AED),
+                ),
+              );
+            }).toList(),
+          );
+        },
       );
     } else {
       if (GroupMission.globalMissions.isEmpty) {
@@ -324,50 +377,58 @@ class _MainAppPageState extends State<MainAppPage> {
     }
   }
 
-  // 단일 미션 카드 레이아웃 컴포넌트
-  Widget _buildMissionCard(String title, String time, double progress, Color themeColor) {
+  Widget _buildMissionCard({
+    required String title,
+    required String subtitle,
+    required double progress,
+    required Color themeColor,
+  }) {
+    final bool isCompleted = progress >= 1.0;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: ShapeDecoration(
         color: Colors.white.withValues(alpha: 0.04),
         shape: RoundedRectangleBorder(
-          side: const BorderSide(width: 0.67, color: Color(0x198E51FF)),
+          side: BorderSide(
+              width: 0.67,
+              color: isCompleted ? const Color(0x6610B981) : const Color(0x198E51FF)
+          ),
           borderRadius: BorderRadius.circular(14),
         ),
       ),
       child: Row(
         children: [
-          // 좌측 대표 포인트 컬러 서클
           Container(
             width: 12,
             height: 12,
             decoration: BoxDecoration(
-              color: themeColor,
+              color: isCompleted ? const Color(0xFF10B981) : themeColor,
               shape: BoxShape.circle,
             ),
           ),
           const SizedBox(width: 14),
 
-          // 중앙 미션 정보 텍스트
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Color(0xFFF0EAFF),
+                  style: TextStyle(
+                    color: isCompleted ? const Color(0xFF7C6FA0) : const Color(0xFFF0EAFF),
                     fontSize: 14,
                     fontFamily: 'Noto Sans KR',
                     fontWeight: FontWeight.w600,
+                    decoration: isCompleted ? TextDecoration.lineThrough : null,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  time,
-                  style: const TextStyle(
-                    color: Color(0xFF7C6FA0),
+                  isCompleted ? '달성 완료 🎉' : subtitle,
+                  style: TextStyle(
+                    color: isCompleted ? const Color(0xFF10B981) : const Color(0xFF7C6FA0),
                     fontSize: 11,
                     fontFamily: 'Noto Sans KR',
                     fontWeight: FontWeight.w400,
@@ -377,7 +438,6 @@ class _MainAppPageState extends State<MainAppPage> {
             ),
           ),
 
-          // 우측 달성률 원형 프로그레스 인디케이터
           Stack(
             alignment: Alignment.center,
             children: [
@@ -387,14 +447,14 @@ class _MainAppPageState extends State<MainAppPage> {
                 child: CircularProgressIndicator(
                   value: progress,
                   backgroundColor: Colors.white.withValues(alpha: 0.05),
-                  color: themeColor,
+                  color: isCompleted ? const Color(0xFF10B981) : themeColor,
                   strokeWidth: 3.5,
                 ),
               ),
               Text(
-                '${(progress * 100).toInt()}%',
-                style: const TextStyle(
-                  color: Color(0xFFF0EAFF),
+                isCompleted ? '완료' : '${(progress * 100).toInt()}%',
+                style: TextStyle(
+                  color: isCompleted ? const Color(0xFF10B981) : const Color(0xFFF0EAFF),
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),

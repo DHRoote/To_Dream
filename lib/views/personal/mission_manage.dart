@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eh/providers/user_provider.dart';
+import './mission_create_dialog.dart';
 
 class MissionManagePage extends StatefulWidget {
   const MissionManagePage({super.key});
@@ -15,11 +17,11 @@ class _MissionManagePageState extends State<MissionManagePage> {
 
   @override
   Widget build(BuildContext context) {
-    final myUserId = context.read<UserProvider>().userId;
+    // 공용 바구니(Provider)에서 현재 로그인된 유저의 ID를 실시간 감시(watch)
+    final myUserId = context.watch<UserProvider>().userId;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -74,16 +76,15 @@ class _MissionManagePageState extends State<MissionManagePage> {
                           OutlinedButton.icon(
                             onPressed: () {
                               setState(() {
-                                _isManageMode = !_isManageMode; // 상태 토글
+                                _isManageMode = !_isManageMode;
                               });
                             },
                             icon: Icon(
-                              _isManageMode ? Icons.close : Icons.edit_note, // 모드에 따라 아이콘 변경
+                              _isManageMode ? Icons.close : Icons.edit_note,
                               size: 20,
                             ),
-                            label: Text(_isManageMode ? '관리 종료' : '미션 관리'), // 모드에 따라 텍스트 변경
+                            label: Text(_isManageMode ? '관리 종료' : '미션 관리'),
                             style: OutlinedButton.styleFrom(
-                              // 관리 모드일 때는 눈에 띄게 색상 반전
                               foregroundColor: _isManageMode ? Colors.white : const Color(0xFFDB2777),
                               backgroundColor: _isManageMode ? const Color(0xFFDB2777) : Colors.transparent,
                               side: const BorderSide(color: Color(0x66DB2777)),
@@ -112,7 +113,16 @@ class _MissionManagePageState extends State<MissionManagePage> {
                               ],
                             ),
                             child: ElevatedButton.icon(
-                              onPressed: () {},
+                              onPressed: () async {
+                                final result = await showDialog(
+                                  context: context,
+                                  builder: (context) => const MissionCreateDialog(),
+                                );
+
+                                if (result == true) {
+                                  print('새 미션 생성 완료!');
+                                }
+                              },
                               icon: const Icon(Icons.add, size: 20, color: Colors.white),
                               label: const Text(
                                 '미션 생성',
@@ -132,38 +142,77 @@ class _MissionManagePageState extends State<MissionManagePage> {
                       ),
                       const SizedBox(height: 32),
 
-                      // 리스트 헤더
-                      Row(
-                        children: [
-                          const Text(
-                            '진행 중인 미션',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'Noto Sans KR',
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFFF0EAFF),
-                            ),
-                          ),
-                          const Spacer(),
-                          const Text(
-                            '총 3개',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontFamily: 'Noto Sans KR',
-                              color: Color(0xFF7C6FA0),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // 3. 동적으로 생성될 미션 리스트 영역
+                      // 3. 파이어스토어 실시간 미션 데이터 연동 영역 (StreamBuilder)
                       Expanded(
-                        child: ListView.builder(
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: 3,
-                          itemBuilder: (context, index) {
-                            return _buildMissionCard();
+                        child: StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('personal_missions')
+                              .where('user_id', isEqualTo: myUserId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(
+                                child: CircularProgressIndicator(color: Color(0xFF8E51FF)),
+                              );
+                            }
+
+                            if (snapshot.hasError) {
+                              return const Center(
+                                child: Text('데이터를 불러오는데 실패했습니다.', style: TextStyle(color: Colors.redAccent)),
+                              );
+                            }
+
+                            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                              return const Center(
+                                child: Text(
+                                  '아직 진행 중인 미션이 없습니다.\n새로운 미션을 생성해 보세요!',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Color(0xFF7C6FA0), fontSize: 15, height: 1.5),
+                                ),
+                              );
+                            }
+
+                            final missionDocs = snapshot.data!.docs;
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Text(
+                                      '진행 중인 미션',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontFamily: 'Noto Sans KR',
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFFF0EAFF),
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '총 ${missionDocs.length}개',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontFamily: 'Noto Sans KR',
+                                        color: Color(0xFF7C6FA0),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+
+                                Expanded(
+                                  child: ListView.builder(
+                                    physics: const BouncingScrollPhysics(),
+                                    itemCount: missionDocs.length,
+                                    itemBuilder: (context, index) {
+                                      // 💡 내 유저 ID(myUserId)를 카드 빌더에 함께 넘겨줍니다.
+                                      return _buildMissionCard(missionDocs[index], myUserId);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            );
                           },
                         ),
                       ),
@@ -179,14 +228,46 @@ class _MissionManagePageState extends State<MissionManagePage> {
   }
 
   // 동적 컨테이너 (미션 아이템 카드 UI)
-  Widget _buildMissionCard() {
+  Widget _buildMissionCard(QueryDocumentSnapshot doc, String myUserId) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    final String title = data['title'] ?? '제목 없음';
+    final int points = data['points'] ?? 0;
+    final int progress = data['progress'] ?? 0;
+    final int maxProgress = data['max_progress'] ?? 1;
+    final Timestamp? targetTimestamp = data['target_date'] as Timestamp?;
+
+    // 1. 달성 완료 여부 계산
+    final bool isCompleted = progress >= maxProgress;
+
+    // 💡 2. 오늘 날짜 필터링 로직 추가 (연, 월, 일 비교)
+    final DateTime now = DateTime.now();
+    final bool isToday = targetTimestamp != null &&
+        targetTimestamp.toDate().year == now.year &&
+        targetTimestamp.toDate().month == now.month &&
+        targetTimestamp.toDate().day == now.day;
+
+    // 완료되지 않았고, '오늘' 목표인 미션만 버튼 활성화
+    final bool buttonEnabled = !isCompleted && isToday;
+
+    // 버튼 텍스트 동적 분기
+    String buttonText = '달성';
+    if (isCompleted) {
+      buttonText = '완료됨';
+    } else if (!isToday) {
+      buttonText = '오늘 아님';
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), // 우측 버튼 밸런스를 위해 패딩 약간 수정
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: ShapeDecoration(
         color: Colors.white.withValues(alpha: 0.04),
         shape: RoundedRectangleBorder(
-          side: const BorderSide(width: 0.67, color: Color(0x198E51FF)),
+          side: BorderSide(
+              width: 0.67,
+              color: isCompleted ? const Color(0x6610B981) : const Color(0x198E51FF)
+          ),
           borderRadius: BorderRadius.circular(14),
         ),
       ),
@@ -195,8 +276,8 @@ class _MissionManagePageState extends State<MissionManagePage> {
           Container(
             width: 12,
             height: 12,
-            decoration: const BoxDecoration(
-              color: Color(0xFF7C3AED),
+            decoration: BoxDecoration(
+              color: isCompleted ? const Color(0xFF10B981) : const Color(0xFF7C3AED),
               shape: BoxShape.circle,
             ),
           ),
@@ -206,20 +287,21 @@ class _MissionManagePageState extends State<MissionManagePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '매일 아침 30분 달리기',
+                Text(
+                  title,
                   style: TextStyle(
-                    color: Color(0xFFF0EAFF),
+                    color: isCompleted ? const Color(0xFF7C6FA0) : const Color(0xFFF0EAFF),
                     fontSize: 15,
                     fontFamily: 'Noto Sans KR',
                     fontWeight: FontWeight.w600,
+                    decoration: isCompleted ? TextDecoration.lineThrough : null,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  '보상: 150 XP',
+                Text(
+                  isCompleted ? '달성 완료 🎉' : '보상: $points XP ($progress/$maxProgress)',
                   style: TextStyle(
-                    color: Color(0xFF8E51FF),
+                    color: isCompleted ? const Color(0xFF10B981) : const Color(0xFF8E51FF),
                     fontSize: 12,
                     fontFamily: 'Noto Sans KR',
                     fontWeight: FontWeight.w500,
@@ -229,36 +311,87 @@ class _MissionManagePageState extends State<MissionManagePage> {
             ),
           ),
 
-          // 💡 모드에 따라 우측 버튼 동적 렌더링 (핵심 변경점)
           _isManageMode
-              ? // 1. 관리 모드일 때: 삭제 버튼
-          IconButton(
+              ? IconButton(
             icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFDB2777), size: 24),
-            onPressed: () {
-              // TODO: 삭제 로직
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('personal_missions')
+                    .doc(doc.id)
+                    .delete();
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('미션이 삭제되었습니다.'), backgroundColor: Colors.black),
+                  );
+                }
+              } catch (e) {
+                print('미션 삭제 실패: $e');
+              }
             },
             constraints: const BoxConstraints(),
             padding: EdgeInsets.zero,
           )
-              : // 2. 일반 모드일 때: 달성 버튼
-          ElevatedButton(
-            onPressed: () {
-              // TODO: 미션 달성(XP 획득) 로직
+              : ElevatedButton(
+            // 💡 완료되었거나 오늘 날짜가 아니면 클릭 불가 처리 (null)
+            onPressed: !buttonEnabled
+                ? null
+                : () async {
+              try {
+                final int nextProgress = progress + 1;
+                final bool isNowDone = nextProgress >= maxProgress;
+
+                // 💡 3. 트랜잭션/일괄 처리를 대신해 순차적으로 두 DB의 데이터를 업데이트합니다.
+                // [작업 A]: 개인 미션 진행도 업그레이드
+                await FirebaseFirestore.instance
+                    .collection('personal_missions')
+                    .doc(doc.id)
+                    .update({
+                  'progress': nextProgress,
+                  if (isNowDone) 'completed_at': FieldValue.serverTimestamp(),
+                });
+
+                // [작업 B]: 유저 컬렉션의 내 계정 XP 증가 (current_xp, total_xp 동시 반영)
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(myUserId)
+                    .update({
+                  'current_xp': FieldValue.increment(points), // 💡 파이어베이스 점수 누적 내장 기능
+                  'total_xp': FieldValue.increment(points),
+                });
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text('🎉 미션 달성 성공! +$points XP가 적립되었습니다.'),
+                        backgroundColor: const Color(0xFF7C3AED)
+                    ),
+                  );
+                }
+              } catch (e) {
+                print('미션 달성 및 XP 업데이트 실패: $e');
+              }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8E51FF).withValues(alpha: 0.2), // 배경은 연한 보라색
-              foregroundColor: const Color(0xFFF0EAFF), // 글씨는 밝게
+              backgroundColor: buttonEnabled
+                  ? const Color(0xFF8E51FF).withValues(alpha: 0.2)
+                  : Colors.white.withOpacity(0.05),
+              foregroundColor: buttonEnabled ? const Color(0xFFF0EAFF) : Colors.white38,
               elevation: 0,
               minimumSize: const Size(60, 32),
               padding: const EdgeInsets.symmetric(horizontal: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
-                side: const BorderSide(color: Color(0xFF8E51FF), width: 1), // 테두리로 포인트
+                side: BorderSide(
+                    color: buttonEnabled ? const Color(0xFF8E51FF) : Colors.transparent,
+                    width: 1
+                ),
               ),
             ),
-            child: const Text(
-              '달성',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            child: Text(
+              buttonText,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
             ),
           ),
         ],
