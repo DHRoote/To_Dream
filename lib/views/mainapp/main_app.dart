@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eh/providers/user_provider.dart';
-import './main_drawer.dart';
-import './calander_widget.dart';
 import '../theme/theme_main.dart';
 import '../models/group_mission.dart';
 import '../widgets/mission_card.dart';
@@ -57,10 +55,7 @@ class _MainAppPageState extends State<MainAppPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ThemeAppPage(
-                  userId: widget.userId,
-                  nickname: widget.nickname,
-                ),
+                builder: (context) => ThemeAppPage(),
               ),
             );
           },
