@@ -1,18 +1,16 @@
 import 'package:eh/views/mainapp/main_drawer.dart';
 import 'package:eh/views/mainapp/calander_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:eh/providers/user_provider.dart';
 import '../models/group_mission.dart';
 import '../widgets/mission_card.dart';
 import '../screens/chat_screen.dart';
 
 class MainAppPage extends StatefulWidget {
-  final String userId;
-  final String nickname;
 
   const MainAppPage({
-    super.key,
-    required this.userId,
-    required this.nickname
+    super.key
   });
 
   @override
@@ -25,6 +23,10 @@ class _MainAppPageState extends State<MainAppPage> {
 
   @override
   Widget build(BuildContext context) {
+
+    final myUserId = context.read<UserProvider>().userId;
+    final myNickname = context.read<UserProvider>().nickname;
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       endDrawer: const MainEndDrawer(),
@@ -121,7 +123,7 @@ class _MainAppPageState extends State<MainAppPage> {
                     children: [
                       const SizedBox(height: 16),
                       // --- 1. 상단 프로필 및 헤더 영역 ---
-                      _buildHeader(),
+                      _buildHeader(myNickname),
                       const SizedBox(height: 24),
 
                       // --- 2. 달력 영역 (동적 변환을 위해 메서드로 분리) ---
@@ -147,7 +149,7 @@ class _MainAppPageState extends State<MainAppPage> {
   }
 
   // 상단 프로필 헤더
-  Widget _buildHeader() {
+  Widget _buildHeader(String nickname) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -168,7 +170,7 @@ class _MainAppPageState extends State<MainAppPage> {
             Row(
               children: [
                 Text(
-                  widget.nickname,
+                  nickname,
                   style: TextStyle(
                     color: Color(0xFFF0EAFF),
                     fontSize: 20,
