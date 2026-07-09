@@ -1,6 +1,7 @@
-import 'package:eh/views/mainapp/main_drawer.dart';
-import 'package:eh/views/mainapp/calander_widget.dart';
 import 'package:flutter/material.dart';
+import './main_drawer.dart';
+import './calander_widget.dart';
+import '../theme/theme_main.dart';
 import '../models/group_mission.dart';
 import '../widgets/mission_card.dart';
 import '../screens/chat_screen.dart';
@@ -52,8 +53,15 @@ class _MainAppPageState extends State<MainAppPage> {
         // 플로팅 버튼
         child: FloatingActionButton(
           onPressed: () {
-            // TODO: 버튼 클릭 시 동작 추가, 위젯 페이지 이동
-            print('공간 FAB 클릭됨');
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ThemeAppPage(
+                  userId: widget.userId,
+                  nickname: widget.nickname,
+                ),
+              ),
+            );
           },
           backgroundColor: Colors.transparent,
           elevation: 0,
