@@ -4,11 +4,15 @@ import '../models/group_mission.dart';
 class MissionCard extends StatelessWidget {
   final GroupMission mission;
   final VoidCallback onJoin;
+  final VoidCallback? onDelete;
+  final bool isJoined;
 
   const MissionCard({
     super.key,
     required this.mission,
     required this.onJoin,
+    this.onDelete,
+    this.isJoined = false,
   });
 
   IconData _getCategoryIcon(String category) {
@@ -42,6 +46,7 @@ class MissionCard extends StatelessWidget {
   }
 
   Widget _buildMoneyInfo(String label, int amount, Color color) {
+    final isXP = label == '상금';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -50,7 +55,9 @@ class MissionCard extends StatelessWidget {
           style: const TextStyle(color: Colors.white38, fontSize: 10),
         ),
         Text(
-          '${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}원',
+          isXP 
+              ? '+${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} XP'
+              : '${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}원',
           style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
         ),
       ],
@@ -104,6 +111,17 @@ class MissionCard extends StatelessWidget {
                         _StatusBadge(status: mission.status),
                         const SizedBox(width: 8),
                         _TimeBadge(time: mission.remainingTime),
+                        if (onDelete != null) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: onDelete,
+                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            visualDensity: VisualDensity.compact,
+                            tooltip: '미션 삭제',
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -131,9 +149,9 @@ class MissionCard extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildMoneyInfo('예치금', mission.deposit, Colors.blueAccent),
-                        _buildMoneyInfo('벌금', mission.penalty, Colors.redAccent),
-                        _buildMoneyInfo('상금', mission.prize, Colors.amber),
+                        Expanded(child: _buildMoneyInfo('예치금', mission.deposit, Colors.blueAccent)),
+                        Expanded(child: _buildMoneyInfo('벌금', mission.penalty, Colors.redAccent)),
+                        Expanded(child: _buildMoneyInfo('상금', mission.prize, Colors.amber)),
                       ],
                     ),
                   ],
@@ -155,10 +173,10 @@ class MissionCard extends StatelessWidget {
               const Icon(Icons.bolt, color: Colors.yellow, size: 16),
               const SizedBox(width: 4),
               Text(
-                '+${mission.xp} XP',
+                '+${mission.prize} XP',
                 style: const TextStyle(color: Colors.yellow, fontSize: 14, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -171,26 +189,47 @@ class MissionCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '기간: ${mission.startDate.month}.${mission.startDate.day} ~ ${mission.endDate.month}.${mission.endDate.day}',
-                    style: const TextStyle(color: Colors.white38, fontSize: 10),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: onJoin,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2A4E5E),
-                  foregroundColor: Colors.lightBlueAccent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+              Expanded(
+                flex: 0,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '기간: ${mission.startDate.month}.${mission.startDate.day} ~ ${mission.endDate.month}.${mission.endDate.day}',
+                      style: const TextStyle(color: Colors.white38, fontSize: 10),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed: onJoin,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isJoined 
+                                ? const Color(0xFF10B981).withValues(alpha: 0.2)
+                                : const Color(0xFF2A4E5E),
+                            foregroundColor: isJoined 
+                                ? const Color(0xFF10B981)
+                                : Colors.lightBlueAccent,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                            minimumSize: const Size(0, 32),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              side: BorderSide(
+                                color: isJoined ? const Color(0xFF10B981) : Colors.transparent,
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            isJoined ? '참가됨' : '참가하기',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                child: const Text('참가하기'),
               ),
             ],
           ),
@@ -203,22 +242,6 @@ class MissionCard extends StatelessWidget {
 class _StatusBadge extends StatelessWidget {
   final String status;
   const _StatusBadge({required this.status});
-
-  Widget _buildMoneyInfo(String label, int amount, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white38, fontSize: 10),
-        ),
-        Text(
-          '${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}원',
-          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -240,22 +263,6 @@ class _StatusBadge extends StatelessWidget {
 class _TimeBadge extends StatelessWidget {
   final String time;
   const _TimeBadge({required this.time});
-
-  Widget _buildMoneyInfo(String label, int amount, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white38, fontSize: 10),
-        ),
-        Text(
-          '${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}원',
-          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
 
   @override
   Widget build(BuildContext context) {

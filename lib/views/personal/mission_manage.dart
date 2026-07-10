@@ -361,10 +361,26 @@ class _MissionManagePageState extends State<MissionManagePage> {
                   'total_xp': FieldValue.increment(points),
                 });
 
+                // 💡 [작업 C]: 첫 미션 달성 시 업적 업데이트
+                if (isNowDone) {
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(myUserId)
+                      .collection('achievements')
+                      .doc('first_mission')
+                      .set({
+                    'isCompleted': true,
+                    'completedAt': FieldValue.serverTimestamp(),
+                    'title': '첫 미션 완료',
+                  }, SetOptions(merge: true));
+                }
+
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content: Text('🎉 미션 달성 성공! +$points XP가 적립되었습니다.'),
+                        content: Text(isNowDone 
+                            ? '🎉 미션 달성 성공! [첫 미션 완료] 업적을 획득했습니다!' 
+                            : '🎉 미션 달성 성공! +$points XP가 적립되었습니다.'),
                         backgroundColor: const Color(0xFF7C3AED)
                     ),
                   );

@@ -206,7 +206,7 @@ class _CreateMissionScreenState extends State<CreateMissionScreen> {
                   const SizedBox(width: 8),
                   Expanded(child: _buildAmountField('벌금 (원)', _penalty.toString(), (val) => _penalty = int.tryParse(val!) ?? 0)),
                   const SizedBox(width: 8),
-                  Expanded(child: _buildAmountField('상금 (원)', _prize.toString(), (val) => _prize = int.tryParse(val!) ?? 0)),
+                  Expanded(child: _buildAmountField('상금 (XP)', _prize.toString(), (val) => _prize = int.tryParse(val!) ?? 0)),
                 ],
               ),
               
@@ -323,8 +323,8 @@ class _CreateMissionScreenState extends State<CreateMissionScreen> {
           'description': _description,
           'currentParticipants': 1,
           'maxParticipants': _maxParticipants.toInt(),
-          'leaderName': '나',
-          'xp': 500,
+          'leaderName': userProvider.nickname.isNotEmpty ? userProvider.nickname : '익명',
+          'xp': _prize,
           'category': _category,
           'status': '모집중',
           'remainingTime': '${_recruitmentEndDate.difference(DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day)).inDays}일 남음',
@@ -339,6 +339,7 @@ class _CreateMissionScreenState extends State<CreateMissionScreen> {
           'recruitmentStartDate': Timestamp.fromDate(_recruitmentStartDate),
           'recruitmentEndDate': Timestamp.fromDate(_recruitmentEndDate),
           'createdAt': FieldValue.serverTimestamp(),
+          'participants': [userProvider.userId], // 생성자를 첫 번째 참가자로 등록
         };
 
         // 1. Firestore에 미션 저장
