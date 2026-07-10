@@ -84,6 +84,17 @@ class MainEndDrawer extends StatelessWidget {
                   spacing: 4, // 버튼 간 간격 4px 반영
                   children: [
                     _buildMenuButton(
+                      icon: Icons.edit_outlined,
+                      title: '마이페이지',
+                      onTap: () {
+                        Navigator.pop(context); // 클릭 시 드로어 닫기
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const MyPage()),
+                        );
+                      },
+                    ),
+                    _buildMenuButton(
                       icon: Icons.emoji_events_outlined,
                       title: '업적',
                       onTap: () {
@@ -169,9 +180,15 @@ class MainEndDrawer extends StatelessWidget {
                 padding: const EdgeInsets.all(16.0),
                 child: InkWell(
                   onTap: () {
-                    Navigator.pop(context);
-                    // TODO: 로그아웃 세션 해제 처리
-                    print('로그아웃 수행');
+                    context.read<UserProvider>().clearUser();
+
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SignInPage(),
+                      ),
+                          (route) => false,
+                    );
                   },
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
