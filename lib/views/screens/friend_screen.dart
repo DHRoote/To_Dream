@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/friend_model.dart';
 import '../widgets/friend_card.dart';
-import '../widgets/friend_request_sheet.dart'; // 👈 요청 관리 팝업 창
-import '../widgets/friend_add_sheet.dart';     // 👈 친구 추가 팝업 창
-import '../screens/friend_detail_screen.dart'; // 👈 [최신 추가] 친구 클릭 시 넘어가는 상세 프로필 화면
+import '../widgets/friend_request_sheet.dart';
+import '../widgets/friend_add_sheet.dart';
+import '../screens/friend_detail_screen.dart';
 
 class FriendScreen extends StatefulWidget {
   const FriendScreen({super.key});
@@ -39,21 +39,7 @@ class _FriendScreenState extends State<FriendScreen> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white),
-              onPressed: () {
-                // TODO: 메뉴 드로어 연결 필요 시 여기에 작성
-              },
-            ),
-          ),
-        ],
+        // 💡 메뉴 버튼(actions) 삭제됨
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -108,7 +94,6 @@ class _FriendScreenState extends State<FriendScreen> {
                       children: [
                         OutlinedButton(
                           onPressed: () {
-                            // 🚀 클릭 시 하단에서 요청관리 바텀 시트 띄우기!
                             showModalBottomSheet(
                               context: context,
                               isScrollControlled: true,
@@ -117,17 +102,17 @@ class _FriendScreenState extends State<FriendScreen> {
                             );
                           },
                           style: OutlinedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D2530), // 어두운 청록/네이비 배경
+                            backgroundColor: const Color(0xFF0D2530),
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(18),
                             ),
-                            side: const BorderSide(color: Color(0xFF00E5FF), width: 1), // 네온 청록색 테두리
+                            side: const BorderSide(color: Color(0xFF00E5FF), width: 1),
                           ),
                           child: const Text(
                             '요청관리',
                             style: TextStyle(
-                              color: Color(0xFF00E5FF), // 네온 청록색 텍스트
+                              color: Color(0xFF00E5FF),
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
@@ -140,7 +125,7 @@ class _FriendScreenState extends State<FriendScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(5),
                             decoration: const BoxDecoration(
-                              color: Color(0xFFFF2D55), // 피그마 핑크/레드 뱃지 컬러
+                              color: Color(0xFFFF2D55),
                               shape: BoxShape.circle,
                             ),
                             constraints: const BoxConstraints(
@@ -165,7 +150,6 @@ class _FriendScreenState extends State<FriendScreen> {
                     // 💡 [친구 추가] 버튼
                     ElevatedButton.icon(
                       onPressed: () {
-                        // 🚀 클릭 시 하단에서 친구추가 바텀 시트 띄우기!
                         showModalBottomSheet(
                           context: context,
                           isScrollControlled: true,
@@ -194,7 +178,7 @@ class _FriendScreenState extends State<FriendScreen> {
             ),
             const SizedBox(height: 16),
 
-            // --- 3. 친구 카드 리스트 뷰 (ListView.builder 활용) ---
+            // --- 3. 친구 카드 리스트 뷰 ---
             Expanded(
               child: ListView.builder(
                 physics: const BouncingScrollPhysics(),
@@ -203,7 +187,6 @@ class _FriendScreenState extends State<FriendScreen> {
                   return FriendCard(
                     friend: _friends[index],
                     onTap: () {
-                      // 🚀 카드를 탭하면 해당 친구의 정보를 담아서 프로필 상세 화면으로 이동!
                       Navigator.push(
                         context,
                         MaterialPageRoute(
