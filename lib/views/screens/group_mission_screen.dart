@@ -1,5 +1,7 @@
+import 'package:eh/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../models/group_mission.dart';
 import '../widgets/mission_card.dart';
 import 'create_mission_screen.dart';
@@ -31,6 +33,8 @@ class _GroupMissionScreenState extends State<GroupMissionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final myUserId = context.watch<UserProvider>().userId;
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
@@ -133,16 +137,87 @@ class _GroupMissionScreenState extends State<GroupMissionScreen> {
                       : ListView.builder(
                           itemCount: filteredMissions.length,
                           itemBuilder: (context, index) {
+                            final mission = filteredMissions[index];
+                            final isJoined = mission.participants.contains(myUserId);
+
                             return MissionCard(
-                              mission: filteredMissions[index],
-                              onJoin: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ChatScreen(mission: filteredMissions[index]),
-                                  ),
-                                );
-                              },
+                              mission: mission,
+                              isJoined: isJoined,
+                              onJoin: isJoined 
+                                ? () {
+                                    // 이미 참가 중이면 채팅방으로 이동
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ChatScreen(mission: mission),
+                                      ),
+                                    );
+                                  }
+                                : () async {
+                                    // 참가하기 로직
+                                    try {
+                                      await FirebaseFirestore.instance
+                                          .collection('group_missions')
+                                          .doc(mission.id)
+                                          .update({
+                                        'currentParticipants': FieldValue.increment(1),
+                                        'participants': FieldValue.arrayUnion([myUserId]),
+                                      });
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('${mission.title} 미션에 참가했습니다!')),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('참가 실패: $e')),
+                                        );
+                                      }
+                                    }
+                                  },
+                              onDelete: mission.participants.isNotEmpty && mission.participants.first == myUserId
+                                ? () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        backgroundColor: const Color(0xFF1E1E2C),
+                                        title: const Text('미션 삭제', style: TextStyle(color: Colors.white)),
+                                        content: const Text('정말로 이 그룹 미션을 삭제하시겠습니까?', style: TextStyle(color: Colors.white70)),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context, false),
+                                            child: const Text('취소', style: TextStyle(color: Colors.grey)),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context, true),
+                                            child: const Text('삭제', style: TextStyle(color: Colors.redAccent)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (confirm == true) {
+                                      try {
+                                        await FirebaseFirestore.instance
+                                            .collection('group_missions')
+                                            .doc(mission.id)
+                                            .delete();
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('미션이 삭제되었습니다.')),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('삭제 실패: $e')),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  }
+                                : null,
                             );
                           },
                         ),

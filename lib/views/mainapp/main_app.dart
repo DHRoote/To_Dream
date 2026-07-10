@@ -139,7 +139,7 @@ class _MainAppPageState extends State<MainAppPage> {
                       _buildMissionTabBar(),
                       const SizedBox(height: 16),
 
-                      _buildMissionList(myUserId),
+                      _buildMissionList(myUserId, myNickname),
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -278,7 +278,7 @@ class _MainAppPageState extends State<MainAppPage> {
     );
   }
 
-  Widget _buildMissionList(String userId) {
+  Widget _buildMissionList(String userId, String myNickname) {
     if (_selectedMissionTab == '개인') {
       return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -354,7 +354,10 @@ class _MainAppPageState extends State<MainAppPage> {
       );
     } else {
       return StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('group_missions').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('group_missions')
+            .where('participants', arrayContains: userId)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Padding(
@@ -368,7 +371,7 @@ class _MainAppPageState extends State<MainAppPage> {
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 40),
                 child: Text(
-                  '참여 중인 그룹 미션이 없습니다.\n새로운 미션에 참여해 보세요!',
+                  '참여 중인 그룹 미션이 없습니다.\n우측 메뉴의 [그룹 미션]에서 새로운 미션에 참여해 보세요!',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey, fontSize: 14),
                 ),
@@ -382,6 +385,7 @@ class _MainAppPageState extends State<MainAppPage> {
             children: missions.map((mission) {
               return MissionCard(
                 mission: mission,
+                isJoined: true, // 홈에 보이는 건 이미 참가한 미션들이므로
                 onJoin: () {
                   Navigator.push(
                     context,
@@ -390,12 +394,60 @@ class _MainAppPageState extends State<MainAppPage> {
                     ),
                   );
                 },
+                onDelete: mission.participants.isNotEmpty && mission.participants.first == userId
+                    ? () {
+                        _showDeleteConfirmDialog(context, mission);
+                      }
+                    : null,
               );
             }).toList(),
           );
         },
       );
     }
+  }
+
+  void _showDeleteConfirmDialog(BuildContext context, GroupMission mission) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('미션 삭제', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text('${mission.title} 미션을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
+            style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('group_missions')
+                    .doc(mission.id)
+                    .delete();
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('미션이 삭제되었습니다.')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('삭제 실패: $e')),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('삭제', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildMissionCard({

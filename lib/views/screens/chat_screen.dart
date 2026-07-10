@@ -21,7 +21,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final ImagePicker _picker = ImagePicker();
   int _selectedTab = 0; // 0: 인증피드, 1: 공지, 2: 멤버
-  bool _isUploading = false;
+  final List<Map<String, dynamic>> _localFeeds = []; // 로컬 인증 피드 리스트
 
   late CollectionReference _feedRef;
   late CollectionReference _noticeRef;
@@ -29,6 +29,11 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    // 기존 데이터 로드
+    if (GroupMission.globalFeeds.containsKey(widget.mission.id)) {
+      _localFeeds.addAll(GroupMission.globalFeeds[widget.mission.id]!);
+    }
+    
     _feedRef = FirebaseFirestore.instance
         .collection('group_missions')
         .doc(widget.mission.id)
@@ -39,14 +44,73 @@ class _ChatScreenState extends State<ChatScreen> {
         .collection('notices');
   }
 
-  Future<void> _takePhoto() async {
+  Future<void> _pickAndUploadImage() async {
+    // 버튼 클릭 시 즉시 카메라 촬영으로 연결 (사용자 요청)
     final XFile? photo = await _picker.pickImage(
       source: ImageSource.camera,
       imageQuality: 70,
     );
-    if (photo != null) {
+    
+    if (photo != null && mounted) {
+      await _uploadFeed(File(photo.path));
+    }
+  }
+
+  Future<void> _uploadFeed(File file) async {
+    // 로딩 인디케이터 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: Colors.blueAccent),
+      ),
+    );
+
+    try {
+      final userProvider = context.read<UserProvider>();
+
+      // Firebase 연동 대신 로컬 리스트에 추가 (사용자 요청사항: firebase 연동 안되게)
+      final newFeed = {
+        'userId': userProvider.userId,
+        'userName': userProvider.nickname,
+        'content': '오늘의 인증 완료! 🔥',
+        'imageFile': file, // 로컬 파일 객체 저장
+        'likes': [],
+        'comments': [], // 댓글 리스트 추가
+        'createdAt': DateTime.now(),
+      };
+
+      setState(() {
+        _localFeeds.insert(0, newFeed);
+      });
+
+      // 전역 저장소에도 저장하여 상태 유지
+      if (!GroupMission.globalFeeds.containsKey(widget.mission.id)) {
+        GroupMission.globalFeeds[widget.mission.id] = [];
+      }
+      GroupMission.globalFeeds[widget.mission.id]!.insert(0, newFeed);
+
+      // 업로드 중인 느낌을 주기 위한 짧은 지연
+      await Future.delayed(const Duration(milliseconds: 500));
+
       if (mounted) {
-        _showPostDialog(File(photo.path));
+        Navigator.pop(context); // 로딩 다이얼로그 닫기
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('인증 사진이 피드에 추가되었습니다!'),
+            backgroundColor: Colors.blueAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // 로딩 다이얼로그 닫기
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('추가 실패: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       }
     }
   }
@@ -107,97 +171,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void _showPostDialog(File file) {
-    final TextEditingController contentController = TextEditingController();
-    showDialog(
-      context: context,
-      barrierDismissible: !_isUploading,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E2C),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('인증 피드 올리기', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(file, height: 150, width: double.infinity, fit: BoxFit.cover),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: contentController,
-                style: const TextStyle(color: Colors.white),
-                maxLines: 2,
-                decoration: InputDecoration(
-                  hintText: '오늘의 성취를 공유해보세요!',
-                  hintStyle: const TextStyle(color: Colors.white24),
-                  filled: true,
-                  fillColor: Colors.white10,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            if (!_isUploading)
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('취소', style: TextStyle(color: Colors.grey)),
-              ),
-            ElevatedButton(
-              onPressed: _isUploading ? null : () async {
-                if (contentController.text.isNotEmpty) {
-                  setDialogState(() => _isUploading = true);
-                  try {
-                    final userProvider = context.read<UserProvider>();
-                    String imageUrl = '';
-                    
-                    // 1. Firebase Storage 이미지 업로드
-                    final storageRef = FirebaseStorage.instance
-                        .ref()
-                        .child('mission_feeds/${widget.mission.id}/${DateTime.now().millisecondsSinceEpoch}.jpg');
-                    await storageRef.putFile(file);
-                    imageUrl = await storageRef.getDownloadURL();
-
-                    // 2. Firestore 데이터 저장
-                    await _feedRef.add({
-                      'userId': userProvider.userId,
-                      'userName': userProvider.nickname,
-                      'content': contentController.text,
-                      'imageUrl': imageUrl,
-                      'likes': [], // 좋아요 누른 유저 ID 리스트
-                      'createdAt': FieldValue.serverTimestamp(),
-                    });
-
-                    if (mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('인증 사진이 성공적으로 업로드되었습니다!')),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('업로드 실패: $e')),
-                      );
-                    }
-                  } finally {
-                    setDialogState(() => _isUploading = false);
-                    setState(() => _isUploading = false);
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-              child: _isUploading 
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('업로드', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -247,7 +220,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       floatingActionButton: _selectedTab == 0
           ? FloatingActionButton.extended(
-              onPressed: _takePhoto,
+              onPressed: _pickAndUploadImage,
               backgroundColor: Colors.blueAccent,
               icon: const Icon(Icons.camera_alt, color: Colors.white),
               label: const Text('인증 업로드', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -331,7 +304,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final data = doc.data() as Map<String, dynamic>;
     final myUserId = context.read<UserProvider>().userId;
     // 방장(리더)이거나 공지 작성자인 경우 삭제 권한 부여
-    final bool canManage = widget.mission.leaderName == '나' || data['userId'] == myUserId;
+    final bool isLeader = widget.mission.participants.isNotEmpty && widget.mission.participants.first == myUserId;
+    final bool canManage = isLeader || data['userId'] == myUserId;
 
     final date = data['createdAt'] != null 
         ? DateFormat('yyyy.MM.dd').format((data['createdAt'] as Timestamp).toDate())
@@ -385,40 +359,71 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildMembersTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 1, // 임시
-      itemBuilder: (context, index) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E1E2C),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: Colors.blueAccent.withValues(alpha: 0.2),
-                child: const Icon(Icons.person, color: Colors.blueAccent, size: 22),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Text('나', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.5)),
-                ),
-                child: const Text('방장', style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('group_missions')
+          .doc(widget.mission.id)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+        final List<String> participants = List<String>.from(data['participants'] ?? []);
+        final String leaderId = participants.isNotEmpty ? participants.first : '';
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: participants.length,
+          itemBuilder: (context, index) {
+            final userId = participants[index];
+            final isLeader = userId == leaderId;
+
+            return FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
+              builder: (context, userSnapshot) {
+                String nickname = userId; // 기본값은 ID
+                if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                  nickname = (userSnapshot.data!.data() as Map<String, dynamic>)['nickname'] ?? userId;
+                }
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E2C),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.blueAccent.withValues(alpha: 0.2),
+                        child: const Icon(Icons.person, color: Colors.blueAccent, size: 22),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          nickname, 
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
+                        ),
+                      ),
+                      if (isLeader)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.5)),
+                          ),
+                          child: const Text('방장', style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
         );
       },
     );
@@ -516,9 +521,15 @@ class _ChatScreenState extends State<ChatScreen> {
     return StreamBuilder<QuerySnapshot>(
       stream: _feedRef.orderBy('createdAt', descending: true).snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final docs = snapshot.data!.docs;
-        if (docs.isEmpty) {
+        // 로컬 인증 데이터와 Firebase 데이터를 합쳐서 표시합니다.
+        final List<dynamic> combinedItems = [];
+        combinedItems.addAll(_localFeeds); // 로컬 피드 우선 추가
+        
+        if (snapshot.hasData) {
+          combinedItems.addAll(snapshot.data!.docs);
+        }
+
+        if (combinedItems.isEmpty) {
           return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -532,10 +543,217 @@ class _ChatScreenState extends State<ChatScreen> {
         }
         return ListView.builder(
           padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          itemBuilder: (context, index) => _buildFeedCard(docs[index]),
+          itemCount: combinedItems.length,
+          itemBuilder: (context, index) {
+            final item = combinedItems[index];
+            if (item is Map<String, dynamic>) {
+              return _buildLocalFeedCard(item);
+            }
+            return _buildFeedCard(item as DocumentSnapshot);
+          },
         );
       },
+    );
+  }
+
+  Widget _buildLocalFeedCard(Map<String, dynamic> data) {
+    final myUserId = context.read<UserProvider>().userId;
+    final List likes = data['likes'] ?? [];
+    final bool isLiked = likes.contains(myUserId);
+    final List comments = data['comments'] ?? [];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E2C), 
+        borderRadius: BorderRadius.circular(20), 
+        border: Border.all(color: Colors.white10)
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 18, 
+                backgroundColor: Colors.blueAccent.withValues(alpha: 0.2), 
+                child: const Icon(Icons.person, color: Colors.blueAccent, size: 20)
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  data['userName'], 
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)
+                )
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.grey, size: 18),
+                color: const Color(0xFF1E1E2C),
+                onSelected: (value) {
+                  if (value == 'delete') {
+                    setState(() {
+                      _localFeeds.remove(data);
+                      GroupMission.globalFeeds[widget.mission.id]?.remove(data);
+                    });
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('삭제', style: TextStyle(color: Colors.redAccent)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.file(
+              data['imageFile'], 
+              width: double.infinity, 
+              height: 200, 
+              fit: BoxFit.cover
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            data['content'], 
+            style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4)
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (isLiked) {
+                      likes.remove(myUserId);
+                    } else {
+                      likes.add(myUserId);
+                    }
+                  });
+                },
+                child: Row(
+                  children: [
+                    Icon(
+                      isLiked ? Icons.favorite : Icons.favorite_border, 
+                      color: isLiked ? Colors.redAccent : Colors.grey, 
+                      size: 20
+                    ),
+                    const SizedBox(width: 4),
+                    Text('${likes.length}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+              GestureDetector(
+                onTap: () => _showLocalCommentBottomSheet(data),
+                child: Row(
+                  children: [
+                    const Icon(Icons.chat_bubble_outline, color: Colors.grey, size: 20),
+                    const SizedBox(width: 4),
+                    Text('${comments.length}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLocalCommentBottomSheet(Map<String, dynamic> data) {
+    final TextEditingController commentController = TextEditingController();
+    final List comments = data['comments'] ?? [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E1E2C),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: Column(
+              children: [
+                const Text('댓글', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                const Divider(color: Colors.white10, height: 30),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: comments.length,
+                    itemBuilder: (context, index) {
+                      final commentData = comments[index] as Map<String, dynamic>;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(radius: 14, backgroundColor: Colors.white10, child: const Icon(Icons.person, size: 16, color: Colors.grey)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(commentData['userName'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                  Text(commentData['content'], style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: commentController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: '댓글을 입력하세요...',
+                          hintStyle: const TextStyle(color: Colors.white24, fontSize: 14),
+                          filled: true,
+                          fillColor: Colors.white10,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      onPressed: () {
+                        if (commentController.text.isNotEmpty) {
+                          final userProvider = context.read<UserProvider>();
+                          setState(() {
+                            final newComment = {
+                              'userId': userProvider.userId,
+                              'userName': userProvider.nickname,
+                              'content': commentController.text,
+                              'createdAt': DateTime.now(),
+                            };
+                            comments.add(newComment);
+                          });
+                          setModalState(() {}); // 모달 내부 상태 업데이트
+                          commentController.clear();
+                        }
+                      },
+                      icon: const Icon(Icons.send, color: Colors.blueAccent),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 30), // 입력창 위치를 약 1cm 올림
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -546,7 +764,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final bool isLiked = likes.contains(myUserId);
     
     // 방장(리더)이거나 피드 작성자인 경우 삭제 권한 부여
-    final bool canManage = widget.mission.leaderName == '나' || data['userId'] == myUserId;
+    final bool isLeader = widget.mission.participants.isNotEmpty && widget.mission.participants.first == myUserId;
+    final bool canManage = isLeader || data['userId'] == myUserId;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -706,6 +925,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 30), // 입력창 위치를 약 1cm 올림
             ],
           ),
         ),

@@ -24,6 +24,8 @@ class GroupMission {
   final DateTime? recruitmentStartDate;
   final DateTime? recruitmentEndDate;
 
+  final List<String> participants;
+
   GroupMission({
     required this.id,
     required this.title,
@@ -45,6 +47,7 @@ class GroupMission {
     this.deposit = 0,
     this.penalty = 0,
     this.prize = 0,
+    this.participants = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -68,6 +71,7 @@ class GroupMission {
       'endDate': Timestamp.fromDate(endDate),
       'recruitmentStartDate': recruitmentStartDate != null ? Timestamp.fromDate(recruitmentStartDate!) : null,
       'recruitmentEndDate': recruitmentEndDate != null ? Timestamp.fromDate(recruitmentEndDate!) : null,
+      'participants': participants,
     };
   }
 
@@ -94,9 +98,11 @@ class GroupMission {
       endDate: (data['endDate'] as Timestamp).toDate(),
       recruitmentStartDate: data['recruitmentStartDate'] != null ? (data['recruitmentStartDate'] as Timestamp).toDate() : null,
       recruitmentEndDate: data['recruitmentEndDate'] != null ? (data['recruitmentEndDate'] as Timestamp).toDate() : null,
+      participants: List<String>.from(data['participants'] ?? []),
     );
   }
 
   // 파이어베이스 연동 전까지 데이터를 유지하기 위한 임시 저장소
   static List<GroupMission> globalMissions = [];
+  static Map<String, List<Map<String, dynamic>>> globalFeeds = {};
 }
