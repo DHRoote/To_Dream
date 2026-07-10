@@ -141,7 +141,13 @@ class MainEndDrawer extends StatelessWidget {
                       title: '친구',
                       onTap: () {
                         Navigator.pop(context);
-                        print('친구 메뉴 클릭됨');
+                        // 2. 친구 목록 화면으로 이동합니다! 🚀
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const FriendScreen(),
+                          ),
+                        );
                       },
                     ),
                   ],
