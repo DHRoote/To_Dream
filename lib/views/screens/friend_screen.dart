@@ -4,6 +4,9 @@ import '../widgets/friend_card.dart';
 import '../widgets/friend_request_sheet.dart';
 import '../widgets/friend_add_sheet.dart';
 import '../screens/friend_detail_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:eh/providers/user_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FriendScreen extends StatefulWidget {
   const FriendScreen({super.key});
@@ -15,192 +18,188 @@ class FriendScreen extends StatefulWidget {
 class _FriendScreenState extends State<FriendScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  // 피그마 UI에 있는 4명의 더미 데이터 (추후 Firebase 연동 시 교체 예정)
-  final List<FriendModel> _friends = [
-    FriendModel(id: '1', nickname: '별빛사냥꾼', realName: '이서연', title: '달빛 모험가', level: 18, currentXp: 2100, maxXp: 3000, lastActive: '방금 전'),
-    FriendModel(id: '2', nickname: '달빛독서왕', realName: '김민준', title: '전설의 독서왕', level: 31, currentXp: 5800, maxXp: 6500, lastActive: '1시간 전'),
-    FriendModel(id: '3', nickname: '새벽별', realName: '박지수', title: '새벽 탐험가', level: 11, currentXp: 900, maxXp: 1500, lastActive: '3시간 전'),
-    FriendModel(id: '4', nickname: '등산왕', realName: '최현우', title: '산의 정복자', level: 22, currentXp: 3000, maxXp: 3500, lastActive: '어제'),
-  ];
+  // 친구의 UID 목록을 받아와서 실제 유저 데이터를 조회하는 함수
+  Future<List<FriendModel>> _fetchFriendsData(List<String> friendIds) async {
+    if (friendIds.isEmpty) return [];
+
+    List<FriendModel> friendsList = [];
+    for (String uid in friendIds) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists) {
+        friendsList.add(FriendModel.fromFirestore(doc));
+      }
+    }
+    return friendsList;
+  }
+
+  // 💡 친구 추가 바텀 시트 열기
+  void _openAddFriendSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // 키보드가 올라올 때 시트도 같이 올라가게 설정
+      backgroundColor: Colors.transparent, // 시트 자체 배경을 투명하게 (내부 UI 둥근 모서리 적용을 위해)
+      builder: (context) => const FriendAddSheet(),
+    );
+  }
+
+  // 💡 요청 관리 바텀 시트 열기
+  void _openRequestSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const FriendRequestSheet(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    // 현재 로그인된 내 UID 가져오기
+    final myUserId = context.read<UserProvider>().userId;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F071D), // 어두운 네이비/퍼플 배경
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          '친구 목록',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        centerTitle: true,
-        // 💡 메뉴 버튼(actions) 삭제됨
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          children: [
-            const SizedBox(height: 10),
+      backgroundColor: const Color(0xFF140C26), // 임의의 배경색 (기존 UI 맞춤)
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
 
-            // --- 1. 친구 검색창 (Search Bar) ---
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF19102E),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-              ),
-              child: TextField(
-                controller: _searchController,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  icon: Icon(Icons.search, color: Colors.white.withOpacity(0.4)),
-                  hintText: '친구 검색...',
-                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-                  border: InputBorder.none,
-                ),
-                onChanged: (value) {
-                  // TODO: 검색어 필터링 로직 추가 가능
-                },
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // --- 2. 리스트 헤더 (친구 수 & [요청관리] & [친구 추가]) ---
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // 좌측: 친구 카운트
-                Text(
-                  '친구 ${_friends.length}명',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+              // --- 1. 상단 타이틀 & 버튼 영역 ---
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '친구 목록',
+                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                ),
-
-                // 우측: 요청관리 버튼 + 친구추가 버튼
-                Row(
-                  children: [
-                    // 💡 [요청관리] 버튼 (알림 뱃지 2 포함)
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) => const FriendRequestSheet(),
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D2530),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            side: const BorderSide(color: Color(0xFF00E5FF), width: 1),
-                          ),
-                          child: const Text(
-                            '요청관리',
-                            style: TextStyle(
-                              color: Color(0xFF00E5FF),
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        // 🔴 우측 상단 빨간 알림 뱃지 (숫자 2)
-                        Positioned(
-                          right: -4,
-                          top: -6,
-                          child: Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFF2D55),
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 20,
-                              minHeight: 20,
-                            ),
-                            alignment: Alignment.center,
-                            child: const Text(
-                              '2',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 10), // 버튼 사이 간격
-
-                    // 💡 [친구 추가] 버튼
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (context) => const FriendAddSheet(),
-                        );
-                      },
-                      icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                      label: const Text(
-                        '친구 추가',
-                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                  Row(
+                    children: [
+                      // 요청 관리 버튼
+                      IconButton(
+                        icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                        onPressed: _openRequestSheet,
+                        tooltip: '친구 요청 관리',
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2D1B54),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          side: BorderSide(color: const Color(0xFF8A2387).withOpacity(0.5)),
-                        ),
-                        elevation: 0,
+                      // 친구 추가 버튼
+                      IconButton(
+                        icon: const Icon(Icons.person_add_alt_1, color: Colors.cyanAccent),
+                        onPressed: _openAddFriendSheet,
+                        tooltip: '새로운 친구 추가',
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
 
-            // --- 3. 친구 카드 리스트 뷰 ---
-            Expanded(
-              child: ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                itemCount: _friends.length,
-                itemBuilder: (context, index) {
-                  return FriendCard(
-                    friend: _friends[index],
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => FriendDetailScreen(
-                            friend: _friends[index],
-                          ),
+              // --- 2. 검색바 영역 ---
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: '내 친구 검색',
+                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                    prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onChanged: (value) {
+                    setState(() {});
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // --- 3. Firebase 연동 친구 카드 리스트 뷰 ---
+              Expanded(
+                child: StreamBuilder<DocumentSnapshot>(
+                  // 내 유저 문서를 실시간 구독하여 friend_list 배열의 변화를 감지합니다.
+                  stream: FirebaseFirestore.instance.collection('users').doc(myUserId).snapshots(),
+                  builder: (context, userSnapshot) {
+                    if (userSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(color: Colors.cyanAccent));
+                    }
+
+                    if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
+                      return const Center(child: Text('유저 정보를 불러올 수 없습니다.', style: TextStyle(color: Colors.white)));
+                    }
+
+                    final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                    // 💡 firestore에 저장될 배열 필드 이름 'friend_list'
+                    final List<dynamic> rawFriendIds = userData['friend_list'] ?? [];
+                    final List<String> friendIds = rawFriendIds.cast<String>();
+
+                    if (friendIds.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          '아직 추가된 친구가 없습니다.\n우측 상단 아이콘을 눌러 새로운 친구를 추가해 보세요!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white54, height: 1.5),
                         ),
                       );
-                    },
-                  );
-                },
+                    }
+
+                    // 친구 UID 목록이 있으면 실제 데이터를 FutureBuilder로 불러옵니다.
+                    return FutureBuilder<List<FriendModel>>(
+                      future: _fetchFriendsData(friendIds),
+                      builder: (context, friendsSnapshot) {
+                        if (friendsSnapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator(color: Colors.cyanAccent));
+                        }
+
+                        final friends = friendsSnapshot.data ?? [];
+
+                        // 로컬 검색어 필터링 적용
+                        final searchQuery = _searchController.text.trim().toLowerCase();
+                        final filteredFriends = friends.where((f) {
+                          return f.nickname.toLowerCase().contains(searchQuery) ||
+                              f.realName.toLowerCase().contains(searchQuery);
+                        }).toList();
+
+                        if (filteredFriends.isEmpty && searchQuery.isNotEmpty) {
+                          return const Center(
+                            child: Text('검색된 친구가 없습니다.', style: TextStyle(color: Colors.white54)),
+                          );
+                        }
+
+                        return ListView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: filteredFriends.length,
+                          itemBuilder: (context, index) {
+                            final friend = filteredFriends[index];
+                            return FriendCard(
+                              friend: friend,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => FriendDetailScreen(friend: friend),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
