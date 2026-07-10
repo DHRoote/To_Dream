@@ -3,6 +3,10 @@ import '../screens/group_mission_screen.dart';
 import '../screens/achievement_screen.dart';
 import '../personal/mission_manage.dart';
 import '../screens/total_mission_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:eh/providers/user_provider.dart';
+import 'package:eh/views/sign/sign_in.dart';
+import 'package:eh/views/personal/my_page.dart';
 import '../screens/friend_screen.dart';
 
 class MainEndDrawer extends StatelessWidget {
@@ -118,7 +122,10 @@ class MainEndDrawer extends StatelessWidget {
                       title: '전체 미션',
                       onTap: () {
                         Navigator.pop(context);
-                        print('전체 미션 메뉴 클릭됨');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TotalMissionScreen()),
+                        );
                       },
                     ),
                     _buildMenuButton(
@@ -133,15 +140,8 @@ class MainEndDrawer extends StatelessWidget {
                       icon: Icons.people_outline,
                       title: '친구',
                       onTap: () {
-                        Navigator.pop(context); // 1. 먼저 열려있는 메뉴 드로어를 닫습니다.
-
-                        // 2. 친구 목록 화면으로 이동합니다! 🚀
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const FriendScreen(),
-                          ),
-                        );
+                        Navigator.pop(context);
+                        print('친구 메뉴 클릭됨');
                       },
                     ),
                   ],

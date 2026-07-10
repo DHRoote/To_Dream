@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eh/providers/user_provider.dart';
+import '../theme/theme_main.dart';
 import '../models/group_mission.dart';
 import '../widgets/mission_card.dart';
 import '../screens/chat_screen.dart';
@@ -51,7 +52,12 @@ class _MainAppPageState extends State<MainAppPage> {
         ),
         child: FloatingActionButton(
           onPressed: () {
-            print('공간 FAB 클릭됨');
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ThemeAppPage(),
+              ),
+            );
           },
           backgroundColor: Colors.transparent,
           elevation: 0,
